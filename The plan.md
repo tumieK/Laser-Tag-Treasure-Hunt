@@ -43,8 +43,8 @@ Fields:
     - The spectators default to seeing the interface of the first player to join the lobby but don't have a shoot button.
 - Then the game has begun and players aim their phones at each other.
 - A hit box appears around the people on your screen that are detected.
-- Their QR codes are scanned automatically and linked to the detected players on the screen.
-- The user presses the shoot button and if the target in the center of their screen is within a player's hitbox, then their device updates the database containing the players and their health and points.
+- Their QR codes are scanned automatically and linked to the detected people on the screen.
+- The user presses the shoot button and if the target in the center of their screen is within a player's hitbox, then their device updates the database containing the players (and their health and points) using the player ID detected from the QR code.
 - When players reach 0 HP they are shown the spectator screen.
 - When the second last player reaches 0 HP then the game ends and the players are taken to a winning screen showing the order that each player was eliminated in.
     - There will be an exit button that takes them to the create or join game screen.
