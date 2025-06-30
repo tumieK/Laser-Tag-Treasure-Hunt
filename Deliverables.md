@@ -1,0 +1,17 @@
+# Deliverables
+- Computer vision
+    - QR code reading
+        - Input: Camera feed
+        - Output: Player and object ID
+    - Human shape detection
+        - Input: Camera feed
+        - Output: Player location on the screen (in pixels)   
+- In-game server logic
+    - Database updating (based on messages)
+- In-game User
+    - Hit detection
+    - Messaging logic
+    - Interface
+- Lobby and session
+    - Joining and creating games (interface and logic)
+    - Joining as a player or spectator (interface and logic)
