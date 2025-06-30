@@ -51,4 +51,4 @@ Fields:
 
 
 # Random notes:
-This website will be hosted on Render. We'll give Render access to our github repo and it will give us a URL to access the website from. 
+This website will be hosted on Render (as opposed to Vercel). We'll give Render access to our github repo and it will give us a URL to access the website from. 
