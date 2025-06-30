@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MoveNet Multi-Person Pose Detection</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; overflow: hidden;
+      height: 100%; width: 100%;
+    }
+    video, canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      object-fit: cover;
+      transform: scaleX(-1); /* Mirror across Y-axis */
+    }
+    canvas {
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <video id="webcam" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
