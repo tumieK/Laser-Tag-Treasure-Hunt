@@ -2,7 +2,7 @@
   "name": "laser-tag-treasure-hunt",
   "version": "1.0.0",
   "description": "Your objective is to create a Laser Tag Treasure Hunt using Computer Vision. This will be a  hybrid game that incorporates both digital and physical interaction between players.",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
