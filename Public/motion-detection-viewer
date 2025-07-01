@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MoveNet Multi-Person Pose Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0; padding: 0; overflow: hidden;
+      height: 100%; width: 100%;
+      background: black;
+    }
+    video, canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      object-fit: cover;
+      transform: scaleX(-1); /* Mirror for selfie view */
+    }
+    canvas {
+      z-index: 10;
+    }
+    #output {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 6px 10px;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <video id="webcam" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
+  <div id="output"><span id="writeout">Initializing...</span>
+  <button onclick="zoomIn()" style="font-size: 18px; margin: 5px;">🔍+</button>
+  <button onclick="zoomOut()" style="font-size: 18px;">🔍−</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
+  <script>
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const output = document.getElementById('output');
+	const writeout = document.getElementById('writeout');
+
+    const EDGES = {
+      '0,1': 'red', '0,2': 'green', '1,3': 'red', '2,4': 'green',
+      '0,5': 'red', '0,6': 'green', '5,7': 'red', '7,9': 'red',
+      '6,8': 'green', '8,10': 'green', '5,6': 'yellow',
+      '5,11': 'red', '6,12': 'green', '11,12': 'yellow',
+      '11,13': 'red', '13,15': 'red', '12,14': 'green', '14,16': 'green'
+    };
+	
+	let zoom = 1.0;
+	const zoomStep = 0.1;
+
+	function zoomIn() {
+	  zoom += zoomStep;
+	}
+	function zoomOut() {
+	  zoom = Math.max(zoomStep, zoom - zoomStep);
+	}
+
+    function resizeCanvas() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
+
+    async function setupCamera() {
+      try {
+        const constraints = {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: window.innerWidth },
+            height: { ideal: window.innerHeight }
+          },
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+
+        return new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.setAttribute("playsinline", true); // Required for iOS
+            video.play();
+            resizeCanvas();
+            writeout.textContent = "Camera ready.";
+            resolve(video);
+          };
+        });
+      } catch (err) {
+        writeout.textContent = 'Camera error: ' + err.message;
+        console.error(err);
+      }
+    }
+
+    function drawKeypoints(keypoints, threshold = 0.4) {
+      for (const kp of keypoints) {
+        if (kp.score > threshold) {
+          ctx.beginPath();
+          ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
+          ctx.fillStyle = 'lime';
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawSkeleton(keypoints, threshold = 0.4) {
+      const map = keypoints.reduce((acc, kp, i) => (acc[i] = kp, acc), {});
+      for (const [edge, color] of Object.entries(EDGES)) {
+        const [i, j] = edge.split(',').map(Number);
+        const kp1 = map[i], kp2 = map[j];
+        if (kp1.score > threshold && kp2.score > threshold) {
+          ctx.beginPath();
+          ctx.moveTo(kp1.x, kp1.y);
+          ctx.lineTo(kp2.x, kp2.y);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      }
+    }
+
+    async function detectPose(detector) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const poses = await detector.estimatePoses(video, { flipHorizontal: true });
+
+	  sctx.save();
+	  ctx.translate(canvas.width / 2, canvas.height / 2);
+	  ctx.scale(zoom, zoom);
+	  ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+      for (const pose of poses) {
+        const keypoints = pose.keypoints;
+        drawKeypoints(keypoints);
+        drawSkeleton(keypoints);
+
+        const xs = [], ys = [];
+        for (const kp of keypoints) {
+          if (kp.score > 0.4) {
+            xs.push(kp.x);
+            ys.push(kp.y);
+          }
+        }
+
+        if (xs.length > 0) {
+          const avgX = xs.reduce((a, b) => a + b) / xs.length;
+          const avgY = ys.reduce((a, b) => a + b) / ys.length;
+
+          ctx.beginPath();
+          ctx.arc(avgX, avgY, 6, 0, 2 * Math.PI);
+          ctx.fillStyle = 'cyan';
+          ctx.fill();
+
+          const minX = Math.min(...xs), maxX = Math.max(...xs);
+          const minY = Math.min(...ys), maxY = Math.max(...ys);
+          ctx.beginPath();
+          ctx.rect(minX - 20, minY - 20, (maxX - minX) + 40, (maxY - minY) + 40);
+          ctx.strokeStyle = 'orange';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          output.textContent = `Center: (${Math.round(avgX)}, ${Math.round(avgY)}) | ${xs.length} keypoints`;
+        }
+      }
+
+      requestAnimationFrame(() => detectPose(detector));
+    }
+
+    async function main() {
+      await tf.setBackend('webgl');
+      await tf.ready();
+      await setupCamera();
+
+      const detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        {
+          modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING
+        }
+      );
+
+      detectPose(detector);
+    }
+	window.addEventListener("keydown", (e) => {
+	  if (e.key === "+") zoom += zoomStep;
+	  else if (e.key === "-" && zoom > zoomStep) zoom -= zoomStep;
+	});
+
+    main();
+  </script>
+</body>
+</html>
