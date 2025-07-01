@@ -2,7 +2,7 @@
 function updateText(text) {
   const delay = 200;
   const h1 = document.getElementById("animated");
-
+  
   h1.innerHTML = text
     .split("")
     .map(letter => `<span>${letter}</span>`)
