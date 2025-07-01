@@ -36,17 +36,17 @@
 
         if (role.toLowerCase() === "spectator") {
           document.getElementById("startButton").style.display = "inline-block";
-          //document.getElementById("resetButton").style.display = "inline-block";
         }
 
         const res = await fetch(`/lobby/start?lobby=${lobby}`);
         const json = await res.json();
         console.log("Wow");
         if (json.error) throw json.error;
+
+        window.location.href = `/ingame_player.html?lobby=${lobby}&player=${player}&username=${username}`;
       } catch (err) {
         alert("Error: " + err);
       }
-      //window.start=start();
     }
 
     async function reset() {
