@@ -1,0 +1,56 @@
+const fs = require("fs");
+const path = require("path");
+
+const DB_PATH = path.join(__dirname, "database.json");
+
+class dbcontroller{
+    static load(){
+        const rawData = fs.readFileSync(DB_PATH, "utf-8");
+        return JSON.parse(rawData);
+    }
+    static save(data){
+        fs.writeFileSync(DB_PATH, JSON.stringify(data,null,2));
+    }
+    static addPlayer(player){
+        const db = this.load();
+        db.players.push(player);
+        this.save(db);
+    }
+    static updatePlayer(playerID, update){
+        const db = this.load();
+        const player = db.players.find(p => p.playerID === playerID);
+        if(!player){
+            throw new Error('Player ${playerID} not found');
+        }
+        if(update.health !== underfined){
+            player.health = update.health;
+        }
+        if(update.points !== undefined){
+            player.points = update.points;
+        }
+        this.save(db);
+    }
+    static updateGameStatus(gameID, status){
+        const db = this.load();
+        const game = db.games.find(g => g.gameID === gameID);
+        if (!game){
+            throw new Error('Game ${gameID} not found');
+        }
+        game.status = status;
+        this.save(db);
+    }
+    static getPlayers(gameID){
+        const db = this.load();
+        const players = db.players.find(p => p.gameID === gameID);
+        if(!players){
+            throw new Error('No players in game found');
+        }
+        return db.players
+    }
+    static getWeapons(){
+        const db = this.load();
+        return db.weapons;
+    }
+}
+
+export {addPlayer,updatePlayer, updateGameStatus,getPlayers,getWeapons}
