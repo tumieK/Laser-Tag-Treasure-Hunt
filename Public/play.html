@@ -26,6 +26,7 @@
 
         const res = await fetch(`/lobby/start?lobby=${lobby}`);
         const json = await res.json();
+        console.log("Wow");
         if (json.error) throw json.error;
       } catch (err) {
         alert("Error: " + err);
@@ -38,6 +39,7 @@
         const lobby = urlParams.get('lobby');
         const res = await fetch(`/lobby/reset?lobby=${lobby}`);
         const json = await res.json();
+        console.log("Horrrayyy");
         if (json.error) throw json.error;
       } catch (err) {
         alert("Error resetting: " + err);
