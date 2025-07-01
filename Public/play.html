@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../style/play.css" />
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700&display=swap" rel="stylesheet" />
 
-  <script>
+  <script type="module">
     async function start() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -31,6 +31,7 @@
       } catch (err) {
         alert("Error: " + err);
       }
+      //window.start=start();
     }
 
     async function reset() {
@@ -61,7 +62,7 @@
     <div><strong>Lobby ID:</strong> <span id="lobby"></span></div>
     <div><strong>You are:</strong> <span id="playerInfo"></span></div>
     <button id="startButton" onclick="start()" style="display:none;">START</button>
-    <button id="resetButton" onclick="reset()" style="display:none;">RESET</button>
+    <!-- <button id="resetButton" onclick="reset()" style="display:none;">RESET</button> -->
   </div>
 </body>
 </html>
