@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laser Tech</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <style>
+    body {
+      font-family: 'Archivo', sans-serif;
+      background: linear-gradient(to bottom, #000000, #1a1a1a);
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 80px 20px;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 40px;
+    }
+
+    h1 span.wavy {
+      display: inline-block;
+      animation: wave 0.5s ease-in-out forwards;
+    }
+
+    @keyframes wave {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .panel {
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      margin: auto;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    input {
+      background-color: #222;
+      color: white;
+    }
+
+    button {
+      background-color: crimson;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: darkred;
+    }
+  </style>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { newLobby, joinLobby } from '/js/main.js';
+    window.newLobby = newLobby;
+    window.joinLobby = joinLobby;
+  </script>
+</head>
+<body>
+  <h1 id="animated">Laser Tech</h1>
+
+  <div class="panel">
+    <button onclick="newLobby()">Create Lobby (Spectator)</button>
+
+    <input type="text" id="lobby" placeholder="Enter Lobby ID" maxlength="6" minlength="6" />
+    <input type="text" id="uname" placeholder="Enter Your Username" maxlength="12" minlength="2" />
+    <button onclick="joinLobby()">Join as Player</button>
+  </div>
+</body>
+</html>

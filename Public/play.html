@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laser Tech</title>
+  <link rel="stylesheet" href="../style/play.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700&display=swap" rel="stylesheet" />
+
+  <script>
+    async function start() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const lobby = urlParams.get('lobby');
+        const player = urlParams.get('player');
+        const username = urlParams.get('username');
+        const role = urlParams.get('role') ?? (player ? "Player" : "Spectator");
+
+        document.getElementById("lobby").textContent = lobby ?? "Unknown";
+        document.getElementById("playerInfo").textContent = username ?? role;
+
+        if (role.toLowerCase() === "spectator") {
+          document.getElementById("startButton").style.display = "inline-block";
+          document.getElementById("resetButton").style.display = "inline-block";
+        }
+
+        const res = await fetch(`/lobby/start?lobby=${lobby}`);
+        const json = await res.json();
+        if (json.error) throw json.error;
+      } catch (err) {
+        alert("Error: " + err);
+      }
+    }
+
+    async function reset() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const lobby = urlParams.get('lobby');
+        const res = await fetch(`/lobby/reset?lobby=${lobby}`);
+        const json = await res.json();
+        if (json.error) throw json.error;
+      } catch (err) {
+        alert("Error resetting: " + err);
+      }
+    }
+
+    window.onload = start;
+  </script>
+</head>
+<body>
+  <!-- Optional: Camera for future CV work -->
+  <video id="camera" autoplay playsinline width="100%" style="max-width: 480px; display: none;"></video>
+
+  <!-- Canvas or future game graphics -->
+  <canvas id="canvas" width="800" height="600" style="width: 100%; height: auto;"></canvas>
+
+  <!-- Lobby Info -->
+  <div id="lobbyPanel">
+    <div><strong>Lobby ID:</strong> <span id="lobby"></span></div>
+    <div><strong>You are:</strong> <span id="playerInfo"></span></div>
+    <button id="startButton" onclick="start()" style="display:none;">START</button>
+    <button id="resetButton" onclick="reset()" style="display:none;">RESET</button>
+  </div>
+</body>
+</html>
