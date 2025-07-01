@@ -28,13 +28,46 @@
       transition: opacity 0.3s ease;
       pointer-events: none;
     }
+    #top-info {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    #shoot-button {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 3rem;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;      
+    }
+    #shoot-button:hover {
+      background-color: #112612;
+    }
   </style>
 </head>
 <body>
   <div id="container">
+    <div id="top-info">
+      <span id="username">Player1</span>
+      <span id="score">Score: 100</span>
+      <span id="health">Health: 5♥</span>
+    </div>
     <video id="video" autoplay playsinline></video>
     <div id="overlay"></div>
     <div id="popup"></div>
+    <button id="shoot-button">Shoot</button>
   </div>
 
   <!-- jsQR from CDN -->
@@ -46,16 +79,17 @@
     const tempCanvas = document.createElement('canvas');
     const ctx = tempCanvas.getContext('2d');
     let regionSize, regionX, regionY;
+    let lastDetectionTime = 0; // Tracks the time of the last QR code detection
 
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
+          video: {
             facingMode: "environment",
             frameRate: { ideal: 120, max: 120 },
             width: { ideal: 1280 },
             height: { ideal: 720 }
-        }
+          }
         });
         video.srcObject = stream;
         video.addEventListener('loadedmetadata', updateOverlay);
@@ -108,13 +142,23 @@
         const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
         if (code) {
+          lastDetectionTime = performance.now(); // Reset timer to current time
           showPopup(code.data);
         }
       }
       requestAnimationFrame(tick);
     }
 
-    // kick off
+    // Button functionality
+    document.getElementById('shoot-button').addEventListener('click', function() {
+      const currentTime = performance.now();
+      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
+      if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
+        showPopup('Hit');
+      }
+    });
+
+    // Kick off
     startCamera();
   </script>
 </body>
