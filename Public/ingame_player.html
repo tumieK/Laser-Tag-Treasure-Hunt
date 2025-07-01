@@ -1,80 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        #video {
-            width: 100%;
-            max-width: 640px;
-            border: 2px solid #333;
-            border-radius: 8px;
-        }
-        #output {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #333;
-            word-wrap: break-word;
-            max-width: 640px;
-        }
-        #canvas {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fast QR Scanner</title>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
+    #container { position: relative; width: 100%; height: 100%; }
+    video { width: 100%; height: auto; display: block; }
+    #overlay {
+      position: absolute;
+      border: 2px dashed red;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    #popup {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-    <h1>QR Code Scanner</h1>
-    <video id="video" autoplay></video>
-    <canvas id="canvas"></canvas>
-    <div id="output">Point your camera at a QR code to scan it.</div>
+  <div id="container">
+    <video id="video" autoplay playsinline></video>
+    <div id="overlay"></div>
+    <div id="popup"></div>
+  </div>
 
-    <script src="js/jsQR.js"></script>
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-        const output = document.getElementById('output');
+  <!-- jsQR from CDN -->
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const popup = document.getElementById('popup');
+    const tempCanvas = document.createElement('canvas');
+    const ctx = tempCanvas.getContext('2d');
+    let regionSize, regionX, regionY;
 
-        // Request access to the camera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
-                video.srcObject = stream;
-                video.setAttribute('playsinline', true); // Required for iOS
-                video.play();
-                requestAnimationFrame(tick);
-            })
-            .catch(err => {
-                output.innerText = 'Error accessing camera: ' + err.message;
-            });
-
-        function tick() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Set canvas size to match video
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                // Draw video frame to canvas
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                // Get image data from canvas
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                // Try to decode QR code
-                const code = jsQR(imageData.data, canvas.width, canvas.height);
-                if (code) {
-                    output.innerText = 'QR Code Data: ' + code.data;
-                }
-            }
-            requestAnimationFrame(tick);
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: "environment",
+            frameRate: { ideal: 120, max: 120 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
         }
-    </script>
+        });
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', updateOverlay);
+        window.addEventListener('resize', updateOverlay);
+        requestAnimationFrame(tick);
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+      }
+    }
+
+    function updateOverlay() {
+      const vw = video.clientWidth;
+      const vh = video.clientHeight;
+      regionSize = vw / 2;
+      overlay.style.width = `${regionSize}px`;
+      overlay.style.height = `${regionSize}px`;
+      overlay.style.left = `${(vw - regionSize) / 2}px`;
+      overlay.style.top = `${(vh - regionSize) / 2}px`;
+
+      // map to video resolution
+      const videoW = video.videoWidth;
+      const videoH = video.videoHeight;
+      const scaleX = videoW / vw;
+      const scaleY = videoH / vh;
+      regionX = (vw - regionSize) / 2 * scaleX;
+      regionY = (vh - regionSize) / 2 * scaleY;
+      tempCanvas.width = regionSize * scaleX;
+      tempCanvas.height = regionSize * scaleY;
+    }
+
+    function showPopup(text) {
+      popup.textContent = text;
+      popup.style.opacity = '1';
+      clearTimeout(popup.hideTimeout);
+      popup.hideTimeout = setTimeout(() => {
+        popup.style.opacity = '0';
+      }, 1000);
+    }
+
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // draw region to temp canvas
+        ctx.drawImage(
+          video,
+          regionX, regionY,
+          tempCanvas.width, tempCanvas.height,
+          0, 0,
+          tempCanvas.width, tempCanvas.height
+        );
+        const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+        if (code) {
+          showPopup(code.data);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // kick off
+    startCamera();
+  </script>
 </body>
 </html>
