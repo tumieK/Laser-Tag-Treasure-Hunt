@@ -103,20 +103,19 @@
         document.getElementById("lobby").textContent = lobby ?? "Unknown";
         document.getElementById("playerInfo").textContent = username ?? role;
 
-        if (role.toLowerCase() === "spectator") {
-          document.getElementById("startButton").style.display = "inline-block";
-        }
+        if (role.toLowerCase() !== "spectator") return;
+        //{document.getElementById("startButton").style.display = "inline-block"; }
 
         const res = await fetch(`/lobby/start?lobby=${lobby}`);
         const json = await res.json();
         if (json.error) throw json.error;
 
-        window.location.href = `/ingame_player.html?lobby=${lobby}&player=${player}&username=${username}`;
+       // window.location.href = `/ingame_player.html?lobby=${lobby}&player=${player}&username=${username}`;
+      window.location.href = `/spectator.html?lobby=${lobby}&player=${player}&username=${username}`;
       } catch (err) {
         alert("Error: " + err);
       }
     }
-
     async function reset() {
       const urlParams = new URLSearchParams(window.location.search);
       const lobby = urlParams.get('lobby');
