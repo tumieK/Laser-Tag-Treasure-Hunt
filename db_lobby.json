@@ -1,1 +1,11 @@
-{}
+{
+  "SFOFWW": {
+    "LobbyId": "1",
+    "status": "Waiting",
+    "players": [
+      "p1",
+      "p2",
+      "p3"
+    ]
+  }
+}
