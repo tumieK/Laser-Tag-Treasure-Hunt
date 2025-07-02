@@ -1,9 +1,145 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const app = express();
 
 app.use(express.static('Public')); // Serve files in /Public
 
-let lobbies = {};
+const data_lobbies = path.join(__dirname,'db_lobby.json')
+
+const data_players = path.join(__dirname,'db_player.json')
+
+
+let lobbies = {}
+
+function read_data(db) 
+{
+  const jsonData = fs.readFileSync(db,'utf-8')
+  return JSON.parse(jsonData)
+}
+
+function write_data(db,data) 
+{
+  fs.writeFileSync(db,JSON.stringify(data,null,2),'utf-8')
+}
+
+
+//Get all lobbies
+
+// app.get("/api/lobby/getall", (req,res) => 
+//   {
+//     const LobbyIds = req.query.    
+//   }); //Not important for now
+
+
+// Get all players for a specific lobby
+
+app.get("/api/lobby/getallplayers", (req, res) => {
+  const { lobbyID } = req.query;
+
+  if (!lobbyID) {
+    return res.status(400).json({ error: "Missing Lobby (ID)." });
+  }
+
+  const lobbies = read_data(data_lobbies);
+  const players = read_data(data_players);
+
+  const lobby = lobbies[lobbyID];
+  if (!lobby) {
+    return res.status(404).json({ error: "Lobby not found." });
+  }
+
+  const usernames = lobby.players.map(playerId => {
+    const player = players[playerId];
+    return player ? player.name : `[Unknown: ${playerId}]`;
+  });
+
+  res.json({
+    message: `Players from lobby ${lobbyID}`,
+    Players: { id: lobbyID, Names: usernames },
+  });
+});
+
+
+// Delete a specific lobby
+
+// To be done later
+
+
+//Players
+
+// Get information of a specific player
+
+app.get('/api/getplayerhealth', (req,res) =>
+  {
+    const {playerID} = req.query
+
+    if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+    const players = read_data(data_players);
+
+
+    const player = players[playerID]
+
+if(!player)
+    {
+      return res.status(400).json({error: "Player not found."})
+    }
+
+    res.json({
+        message: `Player ${player.name} has ${player.health}`,
+        Player: { id: playerID, health: player.health },
+      });
+  });
+
+// Player hits another player
+
+app.get('/api/hit',(req,res)=>
+  {
+    const {hit, shooter } =req.query;
+
+    if(!hit || !shooter)
+    {
+      return res.status(400).json({error: "Missing player (ID)s."})
+    }
+
+
+    const players = read_data(data_players);
+
+
+    const hitPlayer = players[hit]
+    const shootPlayer = players[shooter]
+
+    if(!hitPlayer || !shootPlayer)
+    {
+      return res.status(400).json({error: "One or both players not found"})
+    }
+
+      if(hitPlayer.health == 0)
+        {
+          return res.status(400).json({error: "Player is already dead"})
+        }
+        else
+        {
+          hitPlayer.health = Math.max((hitPlayer.health || 5) - 1, 0);
+          shootPlayer.points += 10;
+        }
+  
+
+
+      players[hit] = hitPlayer;
+      players[shooter] = shootPlayer;
+
+      write_data(data_players,players)
+
+      res.json({
+        message: `Player ${shooter} hit Player ${hit}`,
+        hitPlayer: { id: hit, health: hitPlayer.health },
+        shooterPlayer: { id: shooter, points: shootPlayer.points }
+      });
+  });
 
 // Create lobby
 app.get("/lobby/create", (req, res) => {
