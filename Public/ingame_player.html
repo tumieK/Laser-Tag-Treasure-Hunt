@@ -77,6 +77,7 @@
   <!-- jsQR from CDN -->
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
+    let playerID = "default";    
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
@@ -90,7 +91,7 @@
     // Set audio volumes to max
     pewSound.volume = 1.0;
     boomSound.volume = 1.0;
-
+    
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -164,6 +165,22 @@
       const currentTime = performance.now();
       const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
       if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
+          async function hitPlayer(playerID) {
+            try {
+              const response = await fetch('/api/hit?hit=p1&shooter=p2', {
+                method: 'GET', //  or 'GET' depending on your API
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+              });
+              const result = await response.json();
+              console.log('API Response:', result);
+              // Optionally update UI based on response (e.g., score, health)
+            } catch (error) {
+              console.error('API call failed:', error);
+            }
+        }
         showPopup('Hit');
         // Play boom sound and vibrate on hit
         boomSound.currentTime = 0; // Reset to start
