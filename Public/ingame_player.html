@@ -68,13 +68,17 @@
     <video id="video" autoplay playsinline></video>
     <div id="overlay"></div>
     <div id="popup"></div>
-    <button id="shoot-button">Shoot</button>
+    <button id="shoot-button">Scan your QR code!</button>
+    <!-- Audio elements for sounds -->
     <audio id="pew-sound" src="resources/pew.mp3" preload="auto"></audio>
     <audio id="boom-sound" src="resources/boom.mp3" preload="auto"></audio>
   </div>
 
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
+    let playerID = "default";    
+    let hitPlayerID = "none";
+    let firstScan = true;
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
@@ -97,7 +101,7 @@
 
     pewSound.volume = 1.0;
     boomSound.volume = 1.0;
-
+    
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -114,6 +118,15 @@
         requestAnimationFrame(tick);
       } catch (err) {
         console.error('Error accessing camera:', err);
+      }
+    }
+
+    function removeHttp(text) {
+      if (text[0] == "h") {
+        return text.slice(8);
+      }
+      else{
+        return text;
       }
     }
 
@@ -151,6 +164,17 @@
         const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
         if (code) {
+          if (firstScan) {
+            playerID = removeHttp(code.data);
+            firstScan = false;
+            const button = document.getElementById('shoot-button');
+            button.innerText = "Shoot";
+          }
+          else{
+            lastDetectionTime = performance.now(); // Reset timer to current time
+            showPopup(code.data);
+            hitPlayerID = removeHttp(code.data);
+          }
           lastDetectionTime = performance.now();
           lastScannedId = code.data.trim();
           showPopup(`Target Locked: ${lastScannedId}`);
@@ -161,34 +185,48 @@
 
     document.getElementById('shoot-button').addEventListener('click', function () {
       const currentTime = performance.now();
-      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000;
-
-      if (timeSinceDetection < 0.5 && lastDetectionTime > 0 && lastScannedId && myId) {
-        fetch(`/api/hit?hit=${lastScannedId}&shooter=${myId}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.error) {
-              showPopup(` ${data.error}`);
-            } else {
-              showPopup(`Hit! Enemy HP: ${data.hitPlayer.health}`);
-              document.getElementById('score').textContent = `Score: ${data.shooterPlayer.points}`;
-              document.getElementById('health').textContent = `Health: ${data.shooterPlayer.health}`;
-
-              boomSound.currentTime = 0;
-              boomSound.play().catch(err => console.error('Boom sound error:', err));
-              if ('vibrate' in navigator) navigator.vibrate([1001]);
+      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
+      if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
+          async function hitPlayer(playerID) {
+            try {              
+              const response = await fetch(`/api/hit?hit=${hitPlayerID}&shooter=${playerID}`, {
+                method: 'GET', //  or 'GET' depending on your API
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+              });
+              const result = await response.json();
+              console.log('API Response:', result);
+              // Optionally update UI based on response (e.g., score, health)
+            } catch (error) {
+              console.error('API call failed:', error);
             }
-          })
-          .catch(err => {
-            showPopup(" Server error");
-            console.error("Fetch error:", err);
-          });
-      } else {
-        pewSound.currentTime = 0;
-        pewSound.play().catch(() => {
-          const fallback = pewSound.cloneNode();
-          fallback.volume = 1.0;
-          fallback.play();
+        }
+        hitPlayer(playerID);
+        showPopup('Hit');
+        // Play boom sound and vibrate on hit
+        boomSound.currentTime = 0; // Reset to start
+        boomSound.play().catch(err => console.error('Error playing boom sound:', err));
+        if ('vibrate' in navigator) {
+          navigator.vibrate([1001]); // Min is 1001 ms
+          console.log('Vibration triggered');
+        } else {
+          console.log('Vibration not supported');
+        }
+      }
+      else {
+        // Play pew sound on shoot
+        // Play pew sound with reset for rapid clicks
+        pewSound.currentTime = 0; // Reset to start to allow immediate replay
+        pewSound.play().catch(err => {
+          console.error('Error playing pew sound:', err);
+          // Fallback: Clone audio element to bypass play restrictions
+          const newPewSound = pewSound.cloneNode();
+          newPewSound.volume = 1.0;
+          newPewSound.src = 'resources/pew.mp3';
+          newPewSound.currentTime = 0;
+          newPewSound.play().catch(err => console.error('Fallback pew sound failed:', err));
         });
         showPopup(" No target");
       }

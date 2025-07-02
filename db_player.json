@@ -1,1 +1,26 @@
-{}
+{
+  "2": {
+    "id": "https://10",
+    "name": "Bob",
+    "health": 4,
+    "points": 190
+  },
+  "10": {
+    "id": "https://2",
+    "name": "Alice",
+    "health": 4,
+    "points": 10
+  },
+  "3": {
+    "id": "p3",
+    "name": "Christian",
+    "health": 5,
+    "points": 100
+  },
+  "5": {
+    "id": "p5",
+    "name": "Devon",
+    "health": 5,
+    "points": 100
+  }
+}
