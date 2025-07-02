@@ -209,7 +209,7 @@ if(!player)
 
 let message = "vulnerable";
 
-  if (Number(healthLossType) === 1) {
+  if (Number(healthLossType) == 1) {
     // Set invincibility
     player.invincibilitytime = 15;
     player.isinvincible = true;

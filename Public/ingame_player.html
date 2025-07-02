@@ -79,6 +79,9 @@
     let playerID = "default";    
     let hitPlayerID = "none";
     let firstScan = true;
+    let playerHealth = "5";
+    let playerPoints = 0;
+    let gun = 0;
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
@@ -183,7 +186,7 @@
       requestAnimationFrame(tick);
       async function getHealth(playerID) {
         try {              
-          const response = await fetch(`/api/getplayerhealth?playerID=${playerID}`, {
+          const response = await fetch(`/api/getplayerinfo?playerID=${playerID}`, {
             method: 'GET', //  or 'GET' depending on your API
             headers: {
               'Content-Type': 'application/json',
@@ -205,6 +208,18 @@
               const health = document.getElementById('health');    
               let temp = await getHealth(playerID);
               //console.log("Temp", temp.Player.health);
+              if (temp.Player.health == "0") {
+                window.location.href = "spectator.html";
+              }
+              if (playerHealth > temp.Player.health) {
+                if ('vibrate' in navigator) {
+                  navigator.vibrate([1001]); // Min is 1001 ms
+                  console.log('Vibration triggered');
+                } else {
+                  console.log('Vibration not supported');
+                }                                
+              }
+              playerHealth = temp.Player.health;
               health.innerText = "Health: " + temp.Player.health;
           }
       }
@@ -222,10 +237,10 @@
           });
           const result = await response.json();
           return result;
-          console.log('API get points Response:', result);
+          //console.log('API get points Response:', result);
           // Optionally update UI based on response (e.g., score, health)
         } catch (error) {
-          console.error('API get points call failed:', error);
+          //console.error('API get points call failed:', error);
           return null;
         }        
       }
@@ -234,7 +249,8 @@
           if (playerID != "default") {
               const score = document.getElementById('score');    
               let temp = await getPoints(playerID);
-              console.log("Temp", temp.Player.points);
+              playerPoints = Number(temp.Player.points);
+              //console.log("Temp", temp.Player.points);
               score.innerText = "Score:: " + temp.Player.points;
           }
       }
@@ -263,17 +279,91 @@
               console.error('API call failed:', error);
             }
         }
-        hitPlayer(playerID);
+        async function decreasePoints(playerID) {
+            try {              
+              const response = await fetch(`/api/changepointsplayer?playerID=${playerID}&pointsvalue=20`, {
+                method: 'GET', //  or 'GET' depending on your API
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+              });
+              const result = await response.json();
+              console.log('API Response:', result);
+              // Optionally update UI based on response (e.g., score, health)
+            } catch (error) {
+              console.error('API call failed:', error);
+            }
+        }
+        if (playerPoints >= 20) {
+          if (hitPlayerID == "Gun" && gun == 0) {
+            gun = 1;
+            decreasePoints(playerID);
+          }
+          else if (hitPlayerID == "Life" && Number(playerHealth) < 5) {
+            async function changeHealth(playerID) {
+              try {              
+                let temp = 5 - Number(playerHealth);
+                if (temp > 2) {
+                  temp = 2;
+                }
+                const response = await fetch(`/api/changehealthplayer?playerID=${playerID}&healthvalue=${temp}`, {
+                  method: 'GET', //  or 'GET' depending on your API
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+                });
+                const result = await response.json();
+                console.log('API Response:', result);
+                // Optionally update UI based on response (e.g., score, health)
+              } catch (error) {
+                console.error('API call failed:', error);
+              }
+            }
+            changeHealth(playerID);
+            decreasePoints(playerID);
+          }
+          else if (hitPlayerID == "Invi") {
+            async function invincible(playerID) {
+              try {              
+                const response = await fetch(`/api/makeplayerinvincible?playerID=${playerID}&healthLossType=1`, {
+                  method: 'GET', //  or 'GET' depending on your API
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+                });
+                const result = await response.json();
+                console.log('API Response:', result);
+                // Optionally update UI based on response (e.g., score, health)
+              } catch (error) {
+                console.error('API call failed:', error);
+              }
+            }
+            invincible(playerID);
+            decreasePoints(playerID);
+          }
+          else {
+            hitPlayer(playerID);
+            if (gun == 1) {
+              hitPlayer(playerID);
+              hitPlayer(playerID);
+            }
+          }
+        }
+        else {
+          hitPlayer(playerID);
+          if (gun == 1) {
+              hitPlayer(playerID);
+              hitPlayer(playerID);
+            }
+        }
         showPopup('Hit');
-        // Play boom sound and vibrate on hit
+        // Play boom sound
         boomSound.currentTime = 0; // Reset to start
         boomSound.play().catch(err => console.error('Error playing boom sound:', err));
-        if ('vibrate' in navigator) {
-          navigator.vibrate([1001]); // Min is 1001 ms
-          console.log('Vibration triggered');
-        } else {
-          console.log('Vibration not supported');
-        }
+
       }
       else {
         // Play pew sound on shoot
@@ -292,19 +382,8 @@
       }
     });
 
-    function pollHealth() {
-      if (!myId) return;
-      fetch(`/api/getplayerhealth?playerID=${myId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.error) {
-            document.getElementById('health').textContent = `Health: ${data.Player.health}♥`;
-          }
-        });
-    }
-
     startCamera();
-    setInterval(pollHealth, 5000);
+    //setInterval(pollHealth, 500);
   </script>
 </body>
 </html>
