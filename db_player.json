@@ -2,8 +2,8 @@
   "1": {
     "id": "1",
     "name": "Alice",
-    "health": 5,
-    "points": 0
+    "health": 0,
+    "points": 50
   },
   "2": {
     "id": "2",
