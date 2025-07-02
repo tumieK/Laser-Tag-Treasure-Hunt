@@ -209,7 +209,7 @@ if(!player)
 
 let message = "vulnerable";
 
-  if (Number(healthLossType) == 1) {
+  if (Number(healthLossType) === 1) {
     // Set invincibility
     player.invincibilitytime = 15;
     player.isinvincible = true;
@@ -532,8 +532,11 @@ app.get('/api/hit',(req,res)=>
         }
         else
         {
-          hitPlayer.health = Math.max((hitPlayer.health || 5) - 1, 0);
-          shootPlayer.points += 10;
+          if(hitPlayer.isinvincible !== true)
+          {
+            hitPlayer.health = Math.max((hitPlayer.health || 5) - 1, 0);
+            shootPlayer.points += 10;
+        }
         }
   
 
