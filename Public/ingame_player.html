@@ -69,16 +69,17 @@
     <div id="overlay"></div>
     <div id="popup"></div>
     <button id="shoot-button">Scan your QR code!</button>
-    <!-- Audio elements for sounds -->
     <audio id="pew-sound" src="resources/pew.mp3" preload="auto"></audio>
     <audio id="boom-sound" src="resources/boom.mp3" preload="auto"></audio>
   </div>
 
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
-  <script type="module">
+  <script>
     let playerID = "default";    
     let hitPlayerID = "none";
     let firstScan = true;
+    let healthPollerStarted = false;
+
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
@@ -89,9 +90,7 @@
 
     let regionSize, regionX, regionY;
     let lastDetectionTime = 0;
-    let lastScannedId = null;
 
-    // Params from URL
     const params = new URLSearchParams(window.location.search);
     const myId = params.get('player');
     const username = params.get('username');
@@ -101,7 +100,7 @@
 
     pewSound.volume = 1.0;
     boomSound.volume = 1.0;
-    
+
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -113,23 +112,12 @@
           }
         });
         video.srcObject = stream;
-        //WebRTC track sharin
-        window.localVideoStream=stream;
-        
+        window.localVideoStream = stream;
         video.addEventListener('loadedmetadata', updateOverlay);
         window.addEventListener('resize', updateOverlay);
         requestAnimationFrame(tick);
       } catch (err) {
         console.error('Error accessing camera:', err);
-      }
-    }
-
-    function removeHttp(text) {
-      if (text[0] == "h") {
-        return text.slice(8);
-      }
-      else{
-        return text;
       }
     }
 
@@ -159,187 +147,115 @@
       popup.hideTimeout = setTimeout(() => {
         popup.style.opacity = '0';
       }, 1200);
-    }    
+    }
+
+    async function getHealth(pid) {
+      try {
+        const response = await fetch(`/api/getplayerhealth?playerID=${pid}`);
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function getPoints(pid) {
+      try {
+        const response = await fetch(`/api/getplayerpoints?playerID=${pid}`);
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
 
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         ctx.drawImage(video, regionX, regionY, tempCanvas.width, tempCanvas.height, 0, 0, tempCanvas.width, tempCanvas.height);
         const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
         if (code) {
+          const scanned = code.data.trim().replace(/^https?:\/\//, '');
           if (firstScan) {
-            playerID = removeHttp(code.data);
+            playerID = scanned;
             firstScan = false;
-            const button = document.getElementById('shoot-button');
-            button.innerText = "Shoot";
+            document.getElementById('shoot-button').textContent = "Shoot";
+
+            // Start polling health only after QR scan
+            setInterval(pollHealth, 5000);
+            pollPoints();
+          } else {
+            lastDetectionTime = performance.now();
+            hitPlayerID = scanned;
+            showPopup(`Target Locked: ${scanned}`);
           }
-          else{
-            lastDetectionTime = performance.now(); // Reset timer to current time
-            showPopup(code.data);
-            hitPlayerID = removeHttp(code.data);
-          }
-          lastDetectionTime = performance.now();
-          lastScannedId = code.data.trim();
-          showPopup(`Target Locked: ${lastScannedId}`);
         }
       }
       requestAnimationFrame(tick);
-      async function getHealth(playerID) {
-        try {              
-          const response = await fetch(`/api/getplayerhealth?playerID=${playerID}`, {
-            method: 'GET', //  or 'GET' depending on your API
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
-          });
-          const result = await response.json();
-          return result;
-          //console.log('API get health Response:', result);
-          // Optionally update UI based on response (e.g., score, health)
-        } catch (error) {
-          //console.error('API get health call failed:', error);
-          return null;
-        }        
-      }
-      // Wrap your calling code in an async function
-      async function updatePlayerHealth() {
-          if (playerID != "default") {
-              const health = document.getElementById('health');    
-              let temp = await getHealth(playerID);
-              if (temp.Player.health == "0") {
-                window.location.href = "spectator.html";
-              }
-              //console.log("Temp", temp.Player.health);
-              health.innerText = "Health: " + temp.Player.health;
-          }
-      }
-      // Call the async function
-      updatePlayerHealth();
+    }
 
-      async function getPoints(playerID) {
-        try {              
-          const response = await fetch(`/api/getplayerpoints?playerID=${playerID}`, {
-            method: 'GET', //  or 'GET' depending on your API
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
-          });
-          const result = await response.json();
-          return result;
-          console.log('API get points Response:', result);
-          // Optionally update UI based on response (e.g., score, health)
-        } catch (error) {
-          console.error('API get points call failed:', error);
-          return null;
-        }        
-      }
-      // Wrap your calling code in an async function
-      async function updatePlayerPoints() {
-          if (playerID != "default") {
-              const score = document.getElementById('score');    
-              let temp = await getPoints(playerID);
-              console.log("Temp", temp.Player.points);
-              score.innerText = "Score:: " + temp.Player.points;
-          }
-      }
-      // Call the async function
-      updatePlayerPoints();
-     }
-
-
-    document.getElementById('shoot-button').addEventListener('click', function () {
-      const currentTime = performance.now();
-      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
+    document.getElementById('shoot-button').addEventListener('click', () => {
+      const timeSinceDetection = (performance.now() - lastDetectionTime) / 1000;
       if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
-          async function hitPlayer(playerID) {
-            try {              
-              const response = await fetch(`/api/hit?hit=${hitPlayerID}&shooter=${playerID}`, {
-                method: 'GET', //  or 'GET' depending on your API
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
-              });
-              const result = await response.json();
-              console.log('API Response:', result);
-              // Optionally update UI based on response (e.g., score, health)
-            } catch (error) {
-              console.error('API call failed:', error);
-            }
-        }
-        hitPlayer(playerID);
+        fetch(`/api/hit?hit=${hitPlayerID}&shooter=${playerID}`)
+          .then(res => res.json())
+          .then(result => console.log('Hit:', result))
+          .catch(console.error);
+
         showPopup('Hit');
-        // Play boom sound and vibrate on hit
-        boomSound.currentTime = 0; // Reset to start
-        boomSound.play().catch(err => console.error('Error playing boom sound:', err));
-        if ('vibrate' in navigator) {
-          navigator.vibrate([1001]); // Min is 1001 ms
-          console.log('Vibration triggered');
-        } else {
-          console.log('Vibration not supported');
-        }
-      }
-      else {
-        // Play pew sound on shoot
-        // Play pew sound with reset for rapid clicks
-        pewSound.currentTime = 0; // Reset to start to allow immediate replay
-        pewSound.play().catch(err => {
-          console.error('Error playing pew sound:', err);
-          // Fallback: Clone audio element to bypass play restrictions
-          const newPewSound = pewSound.cloneNode();
-          newPewSound.volume = 1.0;
-          newPewSound.src = 'resources/pew.mp3';
-          newPewSound.currentTime = 0;
-          newPewSound.play().catch(err => console.error('Fallback pew sound failed:', err));
-        });
-        showPopup(" No target");
+        boomSound.currentTime = 0;
+        boomSound.play();
+        navigator.vibrate?.([1001]);
+      } else {
+        pewSound.currentTime = 0;
+        pewSound.play();
+        showPopup("No target");
       }
     });
 
-    function pollHealth() {
-      if (!myId) return;
-      fetch(`/api/getplayerhealth?playerID=${myId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.error) {
-            document.getElementById('health').textContent = `Health: ${data.Player.health}♥`;
-          }
-        });
+    async function pollHealth() {
+      if (playerID === "default") return;
+      const res = await getHealth(playerID);
+      if (res?.Player?.health !== undefined) {
+        document.getElementById('health').textContent = `Health: ${res.Player.health}`;
+        if (res.Player.health === "0" && !firstScan) {
+          window.location.href = `spectator.html?lobby=${lobbyId}`;
+        }
+      }
     }
 
+    async function pollPoints() {
+      const res = await getPoints(playerID);
+      if (res?.Player?.points !== undefined) {
+        document.getElementById('score').textContent = `Score: ${res.Player.points}`;
+      }
+      setTimeout(pollPoints, 5000);
+    }
+
+    //  Start camera immediately
     startCamera();
 
-
-    //Streaming logic for the spectator
+    // WebRTC logic for sending stream to spectator
     const ws = new WebSocket("ws://localhost:8080");
-
-    let peerConnections = {}; // Spectator connections
+    const peerConnections = {};
 
     ws.onopen = () => {
-      // Register player to signaling server
       ws.send(JSON.stringify({
         type: "register",
         gameID: lobbyId,
         playerID: myId
       }));
-      console.log(`Registered to signaling server: ${myId} in ${lobbyId}`);
     };
 
     ws.onmessage = async (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === "signal" && data.signal?.requestOffer) {
-        // Spectator asked for a video stream
         const pc = new RTCPeerConnection();
         peerConnections[data.fromSpectatorID || 'default'] = pc;
 
-        // Add our camera stream to connection
-       // video.srcObject.getTracks().forEach(track => pc.addTrack(track, video.srcObject));
-        const localStream = window.localVideoStream ?? video.srcObject;
-        const clonedStream = localStream.clone();
-        clonedStream.getTracks().forEach(track => pc.addTrack(track, clonedStream));
+        const stream = window.localVideoStream;
+        const clone = stream.clone();
+        clone.getTracks().forEach(track => pc.addTrack(track, clone));
 
         pc.onicecandidate = (event) => {
           if (event.candidate) {
@@ -349,6 +265,7 @@
             }));
           }
         };
+
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
@@ -356,34 +273,9 @@
           type: "playerSignal",
           signal: { sdp: pc.localDescription }
         }));
-
-      console.log("Sent offer to spectator");
       }
-    };
-
-        // pc.onicecandidate = (event) => {
-        //   if (event.candidate) {
-        //     ws.send(JSON.stringify({
-        //       type: "playerSignal",
-        //       signal: { candidate: event.candidate }
-        //     }));
-        //   }
-        // };
-
-        // Create and send offer
-      //   const offer = await pc.createOffer();
-      //   await pc.setLocalDescription(offer);
-
-      //   ws.send(JSON.stringify({
-      //     type: "playerSignal",
-      //     signal: { sdp: pc.localDescription }
-      //   }));
-
-      //   console.log(" Sent offer to spectator");
-      // }
 
       if (data.type === "signal" && data.signal?.candidate) {
-        // Receive ICE from spectator
         const pc = peerConnections['default'];
         if (pc) {
           await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
@@ -394,11 +286,9 @@
         const pc = peerConnections['default'];
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
-          console.log("Spectator accepted our offer");
         }
-      };
-
-    setInterval(pollHealth, 5000);
+      }
+    };
   </script>
 </body>
 </html>
