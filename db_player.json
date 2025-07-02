@@ -1,15 +1,27 @@
 {
+  "1": {
+    "id": "1",
+    "name": "Alice",
+    "health": 5,
+    "points": 0
+  },
   "2": {
     "id": "2",
     "name": "Bob",
-    "health": 0,
-    "points": 220
+    "health": 5,
+    "points": 0
   },
   "3": {
     "id": "3",
     "name": "Christian",
     "health": 5,
-    "points": 100
+    "points": 0
+  },
+  "4": {
+    "id": "4",
+    "name": "Alice",
+    "health": 5,
+    "points": 0
   },
   "5": {
     "id": "5",
@@ -17,11 +29,29 @@
     "health": 5,
     "points": 100
   },
+  "6": {
+    "id": "6",
+    "name": "Alice",
+    "health": 5,
+    "points": 0
+  },
+  "7": {
+    "id": "7",
+    "name": "Alice",
+    "health": 5,
+    "points": 0
+  },
   "8": {
     "id": "8",
     "name": "Alice",
     "health": 2,
     "points": 60
+  },
+  "9": {
+    "id": "9",
+    "name": "Alice",
+    "health": 5,
+    "points": 0
   },
   "10": {
     "id": "10",
