@@ -204,6 +204,9 @@
           if (playerID != "default") {
               const health = document.getElementById('health');    
               let temp = await getHealth(playerID);
+              if (temp.Player.health == "0") {
+                window.location.href = "spectator.html";
+              }
               //console.log("Temp", temp.Player.health);
               health.innerText = "Health: " + temp.Player.health;
           }
