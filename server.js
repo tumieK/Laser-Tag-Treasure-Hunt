@@ -205,6 +205,29 @@ if(!player)
         Player: { id: playerID, health: player.health },
       });
   });
+  app.get('/api/getplayerpoints', (req,res) =>
+  {
+    const {playerID} = req.query
+
+    if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+if(!player)
+    {
+      return res.status(400).json({error: "Player not found."})
+    }
+
+    res.json({
+        message: `Player ${player.name} has ${player.points} points`,
+        Player: { id: playerID, points: player.points },
+      });
+  });
 
 app.get('/api/updateplayer', (req, res) => {
   const { playerID, newPlayerID } = req.query;
