@@ -1,1 +1,26 @@
-{}
+{
+  "p1": {
+    "id": "p1",
+    "name": "Alice",
+    "health": 0,
+    "points": 10
+  },
+  "p2": {
+    "id": "p2",
+    "name": "Bob",
+    "health": 5,
+    "points": 100
+  },
+  "p3": {
+    "id": "p3",
+    "name": "Christian",
+    "health": 5,
+    "points": 100
+  },
+  "p5": {
+    "id": "p5",
+    "name": "Devon",
+    "health": 5,
+    "points": 100
+  }
+}
