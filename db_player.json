@@ -1,26 +1,32 @@
 {
   "2": {
-    "id": "https://10",
+    "id": "2",
     "name": "Bob",
-    "health": 4,
-    "points": 190
-  },
-  "10": {
-    "id": "https://2",
-    "name": "Alice",
-    "health": 4,
-    "points": 10
+    "health": 0,
+    "points": 220
   },
   "3": {
-    "id": "p3",
+    "id": "3",
     "name": "Christian",
     "health": 5,
     "points": 100
   },
   "5": {
-    "id": "p5",
+    "id": "5",
     "name": "Devon",
     "health": 5,
     "points": 100
+  },
+  "8": {
+    "id": "8",
+    "name": "Alice",
+    "health": 2,
+    "points": 60
+  },
+  "10": {
+    "id": "10",
+    "name": "Alice",
+    "health": 0,
+    "points": 90
   }
 }
