@@ -75,7 +75,7 @@
   </div>
 
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
-  <script>
+  <script type="module">
     let playerID = "default";    
     let hitPlayerID = "none";
     let firstScan = true;
@@ -359,6 +359,7 @@
 
       console.log("Sent offer to spectator");
       }
+    };
 
         // pc.onicecandidate = (event) => {
         //   if (event.candidate) {
@@ -370,16 +371,16 @@
         // };
 
         // Create and send offer
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+      //   const offer = await pc.createOffer();
+      //   await pc.setLocalDescription(offer);
 
-        ws.send(JSON.stringify({
-          type: "playerSignal",
-          signal: { sdp: pc.localDescription }
-        }));
+      //   ws.send(JSON.stringify({
+      //     type: "playerSignal",
+      //     signal: { sdp: pc.localDescription }
+      //   }));
 
-        console.log(" Sent offer to spectator");
-      }
+      //   console.log(" Sent offer to spectator");
+      // }
 
       if (data.type === "signal" && data.signal?.candidate) {
         // Receive ICE from spectator
