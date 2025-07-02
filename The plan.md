@@ -1,3 +1,37 @@
+# API calls
+- In game calls:
+    - HitScored
+        - Inputs:
+            - Player hit (ID)
+            - Player shooting (ID)
+        - Actions:
+            - Decrease hit player's health
+            - Increase shooting player's HP
+    - GetPlayerInfo
+        - Input: Player ID
+        - Output: Player HP
+- Lobby:
+    - GetLobbyPlayers
+        - Input: Lobby ID
+        - Output: Player usernames
+    - CreateLobby
+        - Inputs:
+            - Player ID
+    - JoinLobby
+        - Inputs:
+            - LobbyID
+            - PlayerID
+            - Username
+            - PlayerOrSpectator (int)
+    - LeaveLobby
+        - Input
+            - PlayerID
+
+- Less important:
+    - DeleteLobby
+    - UpdatePlayerID
+
+
 # Deliverables
 - Computer vision
     - QR code reading
