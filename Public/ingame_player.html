@@ -336,7 +336,10 @@
         peerConnections[data.fromSpectatorID || 'default'] = pc;
 
         // Add our camera stream to connection
-        video.srcObject.getTracks().forEach(track => pc.addTrack(track, video.srcObject));
+       // video.srcObject.getTracks().forEach(track => pc.addTrack(track, video.srcObject));
+        const localStream = window.localVideoStream ?? video.srcObject;
+        const clonedStream = localStream.clone();
+        clonedStream.getTracks().forEach(track => pc.addTrack(track, clonedStream));
 
         pc.onicecandidate = (event) => {
           if (event.candidate) {
@@ -346,6 +349,25 @@
             }));
           }
         };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        ws.send(JSON.stringify({
+          type: "playerSignal",
+          signal: { sdp: pc.localDescription }
+        }));
+
+      console.log("Sent offer to spectator");
+      }
+
+        // pc.onicecandidate = (event) => {
+        //   if (event.candidate) {
+        //     ws.send(JSON.stringify({
+        //       type: "playerSignal",
+        //       signal: { candidate: event.candidate }
+        //     }));
+        //   }
+        // };
 
         // Create and send offer
         const offer = await pc.createOffer();
@@ -373,8 +395,7 @@
           await pc.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
           console.log("Spectator accepted our offer");
         }
-      }
-    };
+      };
 
     setInterval(pollHealth, 5000);
   </script>
