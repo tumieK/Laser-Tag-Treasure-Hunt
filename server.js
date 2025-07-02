@@ -29,12 +29,12 @@ function write_data(db,data)
 // app.get("/api/lobby/getall", (req,res) => 
 //   {
 //     const LobbyIds = req.query.    
-//   }); //Not important for now
+//   });
 
 
 // Get all players for a specific lobby
 
-app.get("/api/lobby/getallplayers", (req, res) => {
+app.get("/api/lobby/getallplayers", (req, res) => {   
   const { lobbyID } = req.query;
 
   if (!lobbyID) {
@@ -63,9 +63,121 @@ app.get("/api/lobby/getallplayers", (req, res) => {
 
 // Delete a specific lobby
 
-// To be done later
+
+app.get("/api/lobby/delete", (req, res) => {
+  const { lobbyID } = req.query
+
+    if (!lobbyID) {
+    return res.status(400).json({ error: "Missing Lobby (ID)." });
+  }
+
+  const lobbies = read_data(data_lobbies);
+      const lobby = lobbies[lobbyID];
+  if (!lobby) {
+    return res.status(404).json({ error: "Lobby not found." });
+  }
+  
+    delete lobbies[lobbyID]
+
+    write_data(data_lobbies, lobbies);
+
+    res.json({
+    message: `Lobby ${lobbyID} was deleted`,
+    Lobby: { id: lobbyID },
+  });
+
+})
 
 
+// Specific player joins a specific lobby
+
+app.get("/api/lobby/join", (req, res) => {
+  const { lobbyID, playerID } = req.query
+
+    if (!lobbyID) {
+    return res.status(400).json({ error: "Missing Lobby (ID)." });
+  }
+      if (!playerID) {
+    return res.status(400).json({ error: "Missing Player (ID)." });
+  }
+
+  const lobbies = read_data(data_lobbies);
+  const players = read_data(data_players);
+  
+  const lobby = lobbies[lobbyID];
+  const player = players[playerID]; 
+
+  if (!lobby) {
+    return res.status(404).json({ error: "Lobby not found." });
+  }
+
+  if (!player) {
+    return res.status(404).json({ error: "Player not found." });
+  }
+
+  lobby.players = lobby.players || [];
+if (!lobby.players.includes(player.id)) {
+  lobby.players.push(player.id);
+}
+
+  lobbies[lobbyID] = lobby
+  write_data(data_lobbies, lobbies);
+
+    res.json({
+    message: `Player ${playerID} was added to Lobby ${lobbyID}`,
+    Lobby: { id: lobbyID },
+  });
+
+})
+
+// Specific player leaves a specific lobby
+
+app.get("/api/lobby/leave/",(req, res) =>
+    {
+      const { lobbyID, playerID } = req.query
+
+    if (!lobbyID) {
+    return res.status(400).json({ error: "Missing Lobby (ID)." });
+  }
+      if (!playerID) {
+    return res.status(400).json({ error: "Missing Player (ID)." });
+  }
+
+  const lobbies = read_data(data_lobbies);
+  const players = read_data(data_players);
+
+  const lobby = lobbies[lobbyID];
+  const player = players[playerID]; 
+
+    if (!lobby) {
+    return res.status(404).json({ error: "Lobby not found." });
+  }
+
+  if (!player) {
+    return res.status(404).json({ error: "Player not found." });
+  }
+
+    lobby.players = lobby.players || [];
+    var playerIN = false;
+if (lobby.players.includes(player.id)) {
+  lobby.players.pop(player.id);
+  playerIN = true;
+}
+  lobbies[lobbyID] = lobby
+  write_data(data_lobbies, lobbies);
+  if(playerIN){
+  res.json({
+    message: `Player ${playerID} was removed from Lobby ${lobbyID}`,
+    Lobby: { id: lobbyID },
+  });
+  }else
+  {
+      res.json({
+    message: `Player ${playerID} was never in Lobby ${lobbyID}`,
+    Lobby: { id: lobbyID },
+  });
+  }
+});
 //Players
 
 // Get information of a specific player
@@ -94,11 +206,51 @@ if(!player)
       });
   });
 
+app.get('/api/updateplayer', (req, res) => {
+  const { playerID, newPlayerID } = req.query;
+
+  if (!playerID) {
+    return res.status(400).json({ error: "Missing player (ID)." });
+  }
+
+  if (!newPlayerID) {
+    return res.status(400).json({ error: "Missing new player (ID)." });
+  }
+
+  const players = read_data(data_players);
+
+  const player = players[playerID];
+  if (!player) {
+    return res.status(404).json({ error: "Player not found." });
+  }
+
+  // Remove the old playerID key
+  delete players[playerID];
+
+  // Update the player's ID inside the object
+  player.id = newPlayerID;
+
+  // Re-add with new ID as the key
+  players[newPlayerID] = player;
+
+  // Save changes
+  write_data(data_players, players);
+
+  // Respond
+  res.json({
+    message: `Player ID updated from ${playerID} to ${newPlayerID}`,
+    player: player
+  });
+});
+
+
+
 // Player hits another player
 
+// http://2 => 2
 app.get('/api/hit',(req,res)=>
   {
-    const {hit, shooter } =req.query;
+    const {hit, shooter } =req.query; // hit =2 and shooter = 10
 
     if(!hit || !shooter)
     {
@@ -108,9 +260,11 @@ app.get('/api/hit',(req,res)=>
 
     const players = read_data(data_players);
 
+    const hitplayerkey = Object.keys(players).find(key => players[key].id === hit)
+    const shooterkey = Object.keys(players).find(key => players[key].id === shooter)
 
-    const hitPlayer = players[hit]
-    const shootPlayer = players[shooter]
+    const hitPlayer = players[hitplayerkey]
+    const shootPlayer = players[shooterkey]
 
     if(!hitPlayer || !shootPlayer)
     {
@@ -130,14 +284,14 @@ app.get('/api/hit',(req,res)=>
 
 
       players[hit] = hitPlayer;
-      players[shooter] = shootPlayer;
+      players[shooterkey] = shootPlayer;
 
       write_data(data_players,players)
 
       res.json({
-        message: `Player ${shooter} hit Player ${hit}`,
-        hitPlayer: { id: hit, health: hitPlayer.health },
-        shooterPlayer: { id: shooter, points: shootPlayer.points }
+        message: `Player ${shooterkey} hit Player ${hitplayerkey}`,
+        hitPlayer: { id: hitplayerkey, health: hitPlayer.health },
+        shooterPlayer: { id: shooterkey, points: shootPlayer.points }
       });
   });
 
@@ -208,7 +362,7 @@ app.get("/lobby/reset", (req, res) => {
 
   for (let pid in lobby.players) {
     lobby.players[pid].score = 0;
-    lobby.players[pid].health = 100;
+    lobby.players[pid].health = 5;
     lobby.players[pid].powerUps = [];
   }
 
