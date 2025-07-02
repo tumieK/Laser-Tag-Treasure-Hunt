@@ -335,6 +335,82 @@ app.get('/api/changehealthplayer',(req,res)=>
       }); 
   })
 
+  // Change Weapon ID for player
+
+app.get('/api/changeweaponplayer',(req,res)=>
+  {
+    const {playerID,weaponID} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!weaponID)
+    {
+      return res.status(400).json({error: "Missing weapon id value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(weaponID))
+    {
+      player.weaponid =Number(weaponID)
+    }
+    else{
+      return res.status(400).json({error: "Invalid weaponid value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s weaponid changed to ${weaponID}`,
+        Player: { id: playerID, weaponid: player.weaponid },
+      }); 
+  })
+
+//
+
+app.get('/api/changeweaponplayer',(req,res)=>
+  {
+    const {playerID,weaponID} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!weaponID)
+    {
+      return res.status(400).json({error: "Missing weapon id value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(weaponID))
+    {
+      player.weaponid =Number(weaponID)
+    }
+    else{
+      return res.status(400).json({error: "Invalid weaponid value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s weaponid changed to ${weaponID}`,
+        Player: { id: playerID, weaponid: player.weaponid },
+      }); 
+  })
+
   // Get information of a specific player
 
 
