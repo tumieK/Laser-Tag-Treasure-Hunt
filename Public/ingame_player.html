@@ -52,8 +52,9 @@
       border-radius: 5px;
       cursor: pointer;      
     }
-    #shoot-button:hover {
-      background-color: #112612;
+    #shoot-button:active {
+      background-color: #000000;
+      transition: background-color 5ms none;
     }
   </style>
 </head>
@@ -68,6 +69,9 @@
     <div id="overlay"></div>
     <div id="popup"></div>
     <button id="shoot-button">Shoot</button>
+    <!-- Audio elements for sounds -->
+    <audio id="pew-sound" src="resources/pew.mp3" preload="auto"></audio>
+    <audio id="boom-sound" src="resources/boom.mp3" preload="auto"></audio>
   </div>
 
   <!-- jsQR from CDN -->
@@ -80,6 +84,12 @@
     const ctx = tempCanvas.getContext('2d');
     let regionSize, regionX, regionY;
     let lastDetectionTime = 0; // Tracks the time of the last QR code detection
+    const pewSound = document.getElementById('pew-sound');
+    const boomSound = document.getElementById('boom-sound');
+
+    // Set audio volumes to max
+    pewSound.volume = 1.0;
+    boomSound.volume = 1.0;
 
     async function startCamera() {
       try {
@@ -155,6 +165,29 @@
       const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
       if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
         showPopup('Hit');
+        // Play boom sound and vibrate on hit
+        boomSound.currentTime = 0; // Reset to start
+        boomSound.play().catch(err => console.error('Error playing boom sound:', err));
+        if ('vibrate' in navigator) {
+          navigator.vibrate([1001]); // Min is 1001 ms
+          console.log('Vibration triggered');
+        } else {
+          console.log('Vibration not supported');
+        }
+      }
+      else {
+        // Play pew sound on shoot
+        // Play pew sound with reset for rapid clicks
+        pewSound.currentTime = 0; // Reset to start to allow immediate replay
+        pewSound.play().catch(err => {
+          console.error('Error playing pew sound:', err);
+          // Fallback: Clone audio element to bypass play restrictions
+          const newPewSound = pewSound.cloneNode();
+          newPewSound.volume = 1.0;
+          newPewSound.src = 'resources/pew.mp3';
+          newPewSound.currentTime = 0;
+          newPewSound.play().catch(err => console.error('Fallback pew sound failed:', err));
+        });
       }
     });
 
