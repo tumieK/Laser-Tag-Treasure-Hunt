@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spectator View</title>
+  <style>
+    video { border: 2px solid red; width: 640px; height: 480px; background: black; }
+    body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Spectator View</h1>
+  <video id="remoteVideo" autoplay playsinline></video>
+  <p>Status: <span id="status">Loading...</span></p>
+  <button id="btnPrev">Previous Player</button>
+  <button id="btnNext">Next Player</button>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:8080");
+    const gameID = "Game1";
+
+    let peer = null;
+    let players = [];
+    let currentIndex = 0;
+
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      setStatus("Connected to signaling server.");
+      loadGameData();
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "signal") {
+        if (msg.signal.sdp) {
+          peer.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp)).then(() => {
+            if (msg.signal.sdp.type === "offer") {
+              return peer.createAnswer()
+                .then(answer => peer.setLocalDescription(answer))
+                .then(() => {
+                  ws.send(JSON.stringify({
+                    type: "signal",
+                    toGameID: gameID,
+                    toPlayerID: players[currentIndex].playerID,
+                    signal: { sdp: peer.localDescription }
+                  }));
+                  setStatus(`Sent answer to ${players[currentIndex].playerID}`);
+                });
+            }
+          });
+        }
+        if (msg.signal.candidate) {
+          peer.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
+        }
+      }
+    };
+
+    function loadGameData() {
+      fetch("/db_lobby.json")
+        .then(res => res.json())
+        .then(data => {
+          const lobby = data[gameID];
+          if (!lobby || !lobby.players) {
+            throw new Error("No players found.");
+          }
+          players = Object.values(lobby.players);
+          currentIndex = 0;
+          startWatching();
+        })
+        .catch(err => {
+          console.error(err);
+          setStatus("Failed to load player data.");
+        });
+    }
+
+    function startWatching() {
+      if (peer) {
+        peer.close();
+        peer = null;
+        document.getElementById("remoteVideo").srcObject = null;
+      }
+
+      const currentPlayer = players[currentIndex];
+      setStatus(`Requesting stream from ${currentPlayer.username}`);
+
+      peer = new RTCPeerConnection();
+
+      peer.ontrack = (event) => {
+        document.getElementById("remoteVideo").srcObject = event.streams[0];
+        setStatus(`Watching ${currentPlayer.username}`);
+      };
+
+      peer.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.send(JSON.stringify({
+            type: "signal",
+            toGameID: gameID,
+            toPlayerID: currentPlayer.playerID,
+            signal: { candidate: event.candidate }
+          }));
+        }
+      };
+
+      // Tell player to send offer
+      ws.send(JSON.stringify({
+        type: "signal",
+        toGameID: gameID,
+        toPlayerID: currentPlayer.playerID,
+        signal: { requestOffer: true }
+      }));
+    }
+
+    document.getElementById("btnPrev").addEventListener("click", () => {
+      if (players.length === 0) return;
+      currentIndex = (currentIndex - 1 + players.length) % players.length;
+      startWatching();
+    });
+
+    document.getElementById("btnNext").addEventListener("click", () => {
+      if (players.length === 0) return;
+      currentIndex = (currentIndex + 1) % players.length;
+      startWatching();
+    });
+  </script>
+</body>
+</html>
