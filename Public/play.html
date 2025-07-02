@@ -62,7 +62,18 @@
       }
     }
     window.start =start;
-    window.onload = start;
+    window.onload = () =>{
+      const urlParams = new URLSearchParams(window.location.search);
+      const role = urlParams.get('role') ?? (urlParams.get('player') ? "Player" : "Spectator");
+
+      if (role.toLowerCase() === "spectator") {
+        document.getElementById("startButton").style.display = "inline-block";
+      }
+
+      // Display info
+      document.getElementById("lobby").textContent = urlParams.get('lobby') ?? "Unknown";
+      document.getElementById("playerInfo").textContent = urlParams.get('username') ?? role;
+    }
   </script>
 </body>
 </html>
