@@ -2,130 +2,156 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spectator View</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spectator: All Player Feeds</title>
   <style>
-    video { border: 2px solid red; width: 640px; height: 480px; background: black; }
-    body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 2rem; }
+    body {
+      background: black;
+      color: white;
+      font-family: Arial;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+      padding: 20px;
+    }
+    .player {
+      position: relative;
+      border: 2px solid red;
+      background: #111;
+    }
+    .player video {
+      width: 100%;
+      height: auto;
+    }
+    .overlay {
+      position: absolute;
+      bottom: 5px;
+      left: 5px;
+      background: rgba(0,0,0,0.6);
+      padding: 5px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
-  <h1>Spectator View</h1>
-  <video id="remoteVideo" autoplay playsinline></video>
-  <p>Status: <span id="status">Loading...</span></p>
-  <button id="btnPrev">Previous Player</button>
-  <button id="btnNext">Next Player</button>
+  <h1>Live Players</h1>
+  <div class="grid" id="playerGrid"></div>
 
   <script>
     const ws = new WebSocket("ws://localhost:8080");
-    const gameID = "Game1";
+    const urlParams = new URLSearchParams(window.location.search);
+    const lobbyId = urlParams.get("lobby");
 
-    let peer = null;
-    let players = [];
-    let currentIndex = 0;
+    const peers = {};
+    const players = {};
+    const grid = document.getElementById("playerGrid");
 
-    function setStatus(text) {
-      document.getElementById("status").textContent = text;
+    function addPlayerVideo(playerID, username) {
+      const div = document.createElement("div");
+      div.className = "player";
+      div.id = `player-${playerID}`;
+
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.playsInline = true;
+
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.textContent = username;
+
+      div.appendChild(video);
+      div.appendChild(overlay);
+      grid.appendChild(div);
+
+      return video;
     }
 
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-      setStatus("Connected to signaling server.");
-      loadGameData();
-    };
+    async function loadPlayers() {
+      const res = await fetch("/db_lobby.json");
+      const data = await res.json();
+      const lobby = data[lobbyId];
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "signal") {
-        if (msg.signal.sdp) {
-          peer.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp)).then(() => {
-            if (msg.signal.sdp.type === "offer") {
-              return peer.createAnswer()
-                .then(answer => peer.setLocalDescription(answer))
-                .then(() => {
-                  ws.send(JSON.stringify({
-                    type: "signal",
-                    toGameID: gameID,
-                    toPlayerID: players[currentIndex].playerID,
-                    signal: { sdp: peer.localDescription }
-                  }));
-                  setStatus(`Sent answer to ${players[currentIndex].playerID}`);
-                });
-            }
-          });
-        }
-        if (msg.signal.candidate) {
-          peer.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
-        }
+      if (!lobby || !lobby.players) {
+        console.error("No players found");
+        return;
       }
-    };
 
-    function loadGameData() {
-      fetch("/db_lobby.json")
-        .then(res => res.json())
-        .then(data => {
-          const lobby = data[gameID];
-          if (!lobby || !lobby.players) {
-            throw new Error("No players found.");
-          }
-          players = Object.values(lobby.players);
-          currentIndex = 0;
-          startWatching();
-        })
-        .catch(err => {
-          console.error(err);
-          setStatus("Failed to load player data.");
-        });
+      for (const [id, player] of Object.entries(lobby.players)) {
+        const username = player.username || id;
+        const video = addPlayerVideo(id, username);
+        connectToPlayer(id, video);
+      }
     }
 
-    function startWatching() {
-      if (peer) {
-        peer.close();
-        peer = null;
-        document.getElementById("remoteVideo").srcObject = null;
-      }
-
-      const currentPlayer = players[currentIndex];
-      setStatus(`Requesting stream from ${currentPlayer.username}`);
-
-      peer = new RTCPeerConnection();
+    function connectToPlayer(playerID, videoElement) {
+      const peer = new RTCPeerConnection();
+      peers[playerID] = peer;
 
       peer.ontrack = (event) => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
-        setStatus(`Watching ${currentPlayer.username}`);
+        videoElement.srcObject = event.streams[0];
       };
 
       peer.onicecandidate = (event) => {
         if (event.candidate) {
           ws.send(JSON.stringify({
             type: "signal",
-            toGameID: gameID,
-            toPlayerID: currentPlayer.playerID,
+            toGameID: lobbyId,
+            toPlayerID: playerID,
             signal: { candidate: event.candidate }
           }));
         }
       };
 
-      // Tell player to send offer
+      // Request an offer from the player
       ws.send(JSON.stringify({
         type: "signal",
-        toGameID: gameID,
-        toPlayerID: currentPlayer.playerID,
+        toGameID: lobbyId,
+        toPlayerID: playerID,
         signal: { requestOffer: true }
       }));
     }
 
-    document.getElementById("btnPrev").addEventListener("click", () => {
-      if (players.length === 0) return;
-      currentIndex = (currentIndex - 1 + players.length) % players.length;
-      startWatching();
-    });
+    ws.onopen = () => {
+      loadPlayers();
+    };
 
-    document.getElementById("btnNext").addEventListener("click", () => {
-      if (players.length === 0) return;
-      currentIndex = (currentIndex + 1) % players.length;
-      startWatching();
-    });
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === "signal" && msg.signal.sdp) {
+        const playerID = msg.fromPlayerID;
+        const peer = peers[playerID];
+
+        if (peer) {
+          peer.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp)).then(() => {
+            if (msg.signal.sdp.type === "offer") {
+              peer.createAnswer().then(answer => {
+                peer.setLocalDescription(answer).then(() => {
+                  ws.send(JSON.stringify({
+                    type: "signal",
+                    toGameID: lobbyId,
+                    toPlayerID: playerID,
+                    signal: { sdp: peer.localDescription }
+                  }));
+                });
+              });
+            }
+          });
+        }
+      }
+
+      if (msg.signal?.candidate) {
+        const playerID = msg.fromPlayerID;
+        const peer = peers[playerID];
+        if (peer) {
+          peer.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
+        }
+      }
+    };
   </script>
 </body>
 </html>

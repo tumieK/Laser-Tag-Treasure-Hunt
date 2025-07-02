@@ -113,6 +113,9 @@
           }
         });
         video.srcObject = stream;
+        //WebRTC track sharin
+        window.localVideoStream=stream;
+        
         video.addEventListener('loadedmetadata', updateOverlay);
         window.addEventListener('resize', updateOverlay);
         requestAnimationFrame(tick);
@@ -304,6 +307,72 @@
     }
 
     startCamera();
+
+
+    //Streaming logic for the spectator
+    const ws = new WebSocket("ws://localhost:8080");
+
+    let peerConnections = {}; // Spectator connections
+
+    ws.onopen = () => {
+      // Register player to signaling server
+      ws.send(JSON.stringify({
+        type: "register",
+        gameID: lobbyId,
+        playerID: myId
+      }));
+      console.log(`Registered to signaling server: ${myId} in ${lobbyId}`);
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "signal" && data.signal?.requestOffer) {
+        // Spectator asked for a video stream
+        const pc = new RTCPeerConnection();
+        peerConnections[data.fromSpectatorID || 'default'] = pc;
+
+        // Add our camera stream to connection
+        video.srcObject.getTracks().forEach(track => pc.addTrack(track, video.srcObject));
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            ws.send(JSON.stringify({
+              type: "playerSignal",
+              signal: { candidate: event.candidate }
+            }));
+          }
+        };
+
+        // Create and send offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        ws.send(JSON.stringify({
+          type: "playerSignal",
+          signal: { sdp: pc.localDescription }
+        }));
+
+        console.log(" Sent offer to spectator");
+      }
+
+      if (data.type === "signal" && data.signal?.candidate) {
+        // Receive ICE from spectator
+        const pc = peerConnections['default'];
+        if (pc) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+        }
+      }
+
+      if (data.type === "signal" && data.signal?.sdp && data.signal.sdp.type === "answer") {
+        const pc = peerConnections['default'];
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
+          console.log("Spectator accepted our offer");
+        }
+      }
+    };
+
     setInterval(pollHealth, 5000);
   </script>
 </body>
