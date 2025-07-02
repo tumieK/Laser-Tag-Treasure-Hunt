@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Winner</title>
+    <style>
+         body {
+            font-family: 'Archivo', sans-serif;
+            background: linear-gradient(to bottom, #000000, #1a1a1a);
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 80px 20px;
+        }
+
+        h1{
+            font-size: 6em;
+            margin: 40px;
+        }
+
+        h2{
+            text-shadow: 5px 5px darkred;
+            font-size: 3rem;
+            margin-bottom: 40px;
+        }
+
+        #animated {
+            display: inline-block;
+            animation:  1.5s ease-in-out forwards;
+        }
+
+        button{
+            background-color: crimson;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 40px;
+        }
+    </style>
+    <script>
+        async function leave(){
+            window.location.href = "index.html";
+        }
+    </script>
+</head>
+<body>
+    <h2>Laser Tech</h2>
+    <br>
+    <h1 id="animated">You Win</h1>
+   <div id="confetti-container">
+   </div>
+   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <script>
+    window.onload = () => {
+      confetti({
+        particleCount: 2000,
+        spread: 1000,
+        origin: { y: 0.35 }
+      });
+    };
+  </script>
+  <button onclick="leave()">Game Over</button>
+</body>
+</html>
