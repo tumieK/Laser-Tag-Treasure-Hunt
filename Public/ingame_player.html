@@ -192,10 +192,10 @@
           });
           const result = await response.json();
           return result;
-          console.log('API get health Response:', result);
+          //console.log('API get health Response:', result);
           // Optionally update UI based on response (e.g., score, health)
         } catch (error) {
-          console.error('API get health call failed:', error);
+          //console.error('API get health call failed:', error);
           return null;
         }        
       }
@@ -204,13 +204,44 @@
           if (playerID != "default") {
               const health = document.getElementById('health');    
               let temp = await getHealth(playerID);
-              console.log("Temp", temp.Player.health);
+              //console.log("Temp", temp.Player.health);
               health.innerText = "Health: " + temp.Player.health;
           }
       }
       // Call the async function
       updatePlayerHealth();
-     }     
+
+      async function getPoints(playerID) {
+        try {              
+          const response = await fetch(`/api/getplayerpoints?playerID=${playerID}`, {
+            method: 'GET', //  or 'GET' depending on your API
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+          });
+          const result = await response.json();
+          return result;
+          console.log('API get points Response:', result);
+          // Optionally update UI based on response (e.g., score, health)
+        } catch (error) {
+          console.error('API get points call failed:', error);
+          return null;
+        }        
+      }
+      // Wrap your calling code in an async function
+      async function updatePlayerPoints() {
+          if (playerID != "default") {
+              const score = document.getElementById('score');    
+              let temp = await getPoints(playerID);
+              console.log("Temp", temp.Player.points);
+              score.innerText = "Score:: " + temp.Player.points;
+          }
+      }
+      // Call the async function
+      updatePlayerPoints();
+     }
+
 
     document.getElementById('shoot-button').addEventListener('click', function () {
       const currentTime = performance.now();
