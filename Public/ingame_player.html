@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fast QR Scanner</title>
+  <title>Laser Tag – QR Shooter</title>
   <style>
     body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
     #container { position: relative; width: 100%; height: 100%; }
@@ -50,7 +50,7 @@
       color: white;
       border: none;
       border-radius: 5px;
-      cursor: pointer;      
+      cursor: pointer;
     }
     #shoot-button:active {
       background-color: #000000;
@@ -61,33 +61,40 @@
 <body>
   <div id="container">
     <div id="top-info">
-      <span id="username">Player1</span>
-      <span id="score">Score: 100</span>
-      <span id="health">Health: 5♥</span>
+      <span id="username">Player</span>
+      <span id="score">Score: 0</span>
+      <span id="health">Health: ?♥</span>
     </div>
     <video id="video" autoplay playsinline></video>
     <div id="overlay"></div>
     <div id="popup"></div>
     <button id="shoot-button">Shoot</button>
-    <!-- Audio elements for sounds -->
     <audio id="pew-sound" src="resources/pew.mp3" preload="auto"></audio>
     <audio id="boom-sound" src="resources/boom.mp3" preload="auto"></audio>
   </div>
 
-  <!-- jsQR from CDN -->
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
-    const tempCanvas = document.createElement('canvas');
-    const ctx = tempCanvas.getContext('2d');
-    let regionSize, regionX, regionY;
-    let lastDetectionTime = 0; // Tracks the time of the last QR code detection
     const pewSound = document.getElementById('pew-sound');
     const boomSound = document.getElementById('boom-sound');
+    const tempCanvas = document.createElement('canvas');
+    const ctx = tempCanvas.getContext('2d');
 
-    // Set audio volumes to max
+    let regionSize, regionX, regionY;
+    let lastDetectionTime = 0;
+    let lastScannedId = null;
+
+    // Params from URL
+    const params = new URLSearchParams(window.location.search);
+    const myId = params.get('player');
+    const username = params.get('username');
+    const lobbyId = params.get('lobby');
+
+    document.getElementById('username').textContent = username ?? 'Player';
+
     pewSound.volume = 1.0;
     boomSound.volume = 1.0;
 
@@ -119,7 +126,6 @@
       overlay.style.left = `${(vw - regionSize) / 2}px`;
       overlay.style.top = `${(vh - regionSize) / 2}px`;
 
-      // map to video resolution
       const videoW = video.videoWidth;
       const videoH = video.videoHeight;
       const scaleX = videoW / vw;
@@ -136,63 +142,71 @@
       clearTimeout(popup.hideTimeout);
       popup.hideTimeout = setTimeout(() => {
         popup.style.opacity = '0';
-      }, 1000);
+      }, 1200);
     }
 
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        // draw region to temp canvas
-        ctx.drawImage(
-          video,
-          regionX, regionY,
-          tempCanvas.width, tempCanvas.height,
-          0, 0,
-          tempCanvas.width, tempCanvas.height
-        );
+        ctx.drawImage(video, regionX, regionY, tempCanvas.width, tempCanvas.height, 0, 0, tempCanvas.width, tempCanvas.height);
         const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
         if (code) {
-          lastDetectionTime = performance.now(); // Reset timer to current time
-          showPopup(code.data);
+          lastDetectionTime = performance.now();
+          lastScannedId = code.data.trim();
+          showPopup(`Target Locked: ${lastScannedId}`);
         }
       }
       requestAnimationFrame(tick);
     }
 
-    // Button functionality
-    document.getElementById('shoot-button').addEventListener('click', function() {
+    document.getElementById('shoot-button').addEventListener('click', function () {
       const currentTime = performance.now();
-      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000; // Convert to seconds
-      if (timeSinceDetection < 0.5 && lastDetectionTime > 0) {
-        showPopup('Hit');
-        // Play boom sound and vibrate on hit
-        boomSound.currentTime = 0; // Reset to start
-        boomSound.play().catch(err => console.error('Error playing boom sound:', err));
-        if ('vibrate' in navigator) {
-          navigator.vibrate([1001]); // Min is 1001 ms
-          console.log('Vibration triggered');
-        } else {
-          console.log('Vibration not supported');
-        }
-      }
-      else {
-        // Play pew sound on shoot
-        // Play pew sound with reset for rapid clicks
-        pewSound.currentTime = 0; // Reset to start to allow immediate replay
-        pewSound.play().catch(err => {
-          console.error('Error playing pew sound:', err);
-          // Fallback: Clone audio element to bypass play restrictions
-          const newPewSound = pewSound.cloneNode();
-          newPewSound.volume = 1.0;
-          newPewSound.src = 'resources/pew.mp3';
-          newPewSound.currentTime = 0;
-          newPewSound.play().catch(err => console.error('Fallback pew sound failed:', err));
+      const timeSinceDetection = (currentTime - lastDetectionTime) / 1000;
+
+      if (timeSinceDetection < 0.5 && lastDetectionTime > 0 && lastScannedId && myId) {
+        fetch(`/api/hit?hit=${lastScannedId}&shooter=${myId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              showPopup(` ${data.error}`);
+            } else {
+              showPopup(`Hit! Enemy HP: ${data.hitPlayer.health}`);
+              document.getElementById('score').textContent = `Score: ${data.shooterPlayer.points}`;
+              document.getElementById('health').textContent = `Health: ${data.shooterPlayer.health}`;
+
+              boomSound.currentTime = 0;
+              boomSound.play().catch(err => console.error('Boom sound error:', err));
+              if ('vibrate' in navigator) navigator.vibrate([1001]);
+            }
+          })
+          .catch(err => {
+            showPopup(" Server error");
+            console.error("Fetch error:", err);
+          });
+      } else {
+        pewSound.currentTime = 0;
+        pewSound.play().catch(() => {
+          const fallback = pewSound.cloneNode();
+          fallback.volume = 1.0;
+          fallback.play();
         });
+        showPopup(" No target");
       }
     });
 
-    // Kick off
+    function pollHealth() {
+      if (!myId) return;
+      fetch(`/api/getplayerhealth?playerID=${myId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error) {
+            document.getElementById('health').textContent = `Health: ${data.Player.health}♥`;
+          }
+        });
+    }
+
     startCamera();
+    setInterval(pollHealth, 5000);
   </script>
 </body>
 </html>
