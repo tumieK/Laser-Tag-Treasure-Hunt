@@ -1,23 +1,23 @@
 {
-  "p1": {
-    "id": "p1",
+  "2": {
+    "id": "https://10",
+    "name": "Bob",
+    "health": 4,
+    "points": 190
+  },
+  "10": {
+    "id": "https://2",
     "name": "Alice",
-    "health": 0,
+    "health": 4,
     "points": 10
   },
-  "p2": {
-    "id": "p2",
-    "name": "Bob",
-    "health": 5,
-    "points": 100
-  },
-  "p3": {
+  "3": {
     "id": "p3",
     "name": "Christian",
     "health": 5,
     "points": 100
   },
-  "p5": {
+  "5": {
     "id": "p5",
     "name": "Devon",
     "health": 5,
