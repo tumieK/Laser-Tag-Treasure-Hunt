@@ -1,6 +1,6 @@
 {"players":[
-    {"playerID" : "Player 1", "points":0, "health":5 , "weapon": "pistol", "gameID":"0001"},
-    {"playerID": "Player 2", "points" : 0, "health": 5, "weapon":"pistol", "gameID": "0001"}
+    {"playerID" : "Player 1", "points":0, "health":5 , "weapon": "pistol", "gameID":"0001", "connected": true},
+    {"playerID": "Player 2", "points" : 0, "health": 5, "weapon":"pistol", "gameID": "0001", "connected": true}
 ],
 "games": [
     {"gameID": "0001", "status": "in progress"}

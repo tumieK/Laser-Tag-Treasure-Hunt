@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scake=1.0">
+    <title>Spectator View</title>
+    <Style>
+        video {border: 1px solid #ccc; width: 600px; height: 400px;}
+    </Style>
+</head>
+<body>
+        <h1>Spectator View</h1>
+        <video id="remoteVideo" autoplay playsinline></video>
+        <p>Status: <span id="status">Loading...</span></p>
+        <button id="btnPrev">Previous Player</button>
+        <button id="btnNext">Next Player</button>
+
+        <script>
+          const ws = new WebSocket("ws://localhost:8080");
+          const gameID = "Game1";
+
+          const firstPlayer = gameData.player.find(p => p.gameID === gameID);
+          if(!firstPlayer){
+            alert('No players found for id');
+            throw new Error('No players found');
+          }
+
+          const playerID = firstPlayer.playerID;
+
+          let peer = null;
+          let players = [];
+          let currentIndex = 0;
+
+          ws.onopen = () => {
+            setStatus('Connected. Requesting stream from player')
+            loadGameData();
+          };
+
+          ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if(msg.type === "signal"){
+                if(msg.signal.sdp){
+                    peer.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp))
+                    .then(() => {
+                        if(msg.signal.sdp.type === "offer") {
+                            return peer.createAnswer()
+                            .then(answer => peer.setLocalDescription(answer))
+                            .then(() => {
+                                ws.send(JSON.stringify({
+                                    type: "signal",
+                                    toGameID : gameID,
+                                    toPlayerID : players[currentIdex].playerID,
+                                    signal: {sdp: peer.setLocalDescription}
+                                }));
+                                setStatus('Sent answer to id');
+                            });
+                        }
+                    });
+                }
+                if(msg.signal.candidate){
+                    peer.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
+                }
+            }
+          };
+        
+
+          function loadGameData() {
+            fetch("/database.json")
+            .then(response => {
+                if(!response.ok) throw new Error("Failed to load JSON");
+                return response.json();
+            })
+            .then(data => {
+                const game = data.games.find(g => g.gameID === gameID);
+                if(!game || !game.players || game.players.length === 0){
+                    throw new Error('Lobby ID has no players.');
+                }
+                players = game.players;
+                currentIndex = 0;
+                startWatching();
+            })
+            .catch(err => {
+                alert("Error: "+ err.message);
+                setStatus("Error loading game data.");
+            });
+          }
+
+          function startWatching(){
+            if(peer){
+                peer.close();
+                peer = null;
+                document.getElementById("remoteVideo").srcObect = null;
+            }
+
+            const currentPlayer = players[currentIndex];
+            setStatus('Requesting stream from player');
+
+            peer = new RTCPeerConnection();
+
+            peer.ontrack = (evant) => {
+               document.getElementById("remoteVideo").srcObect = event.streams[0];
+               setStatus('Watching $Watching ${currentPlayer.playerID}');
+            };
+
+            peer.onicecandidate = (event) => {
+                if(event.candidate){
+                    ws.send(JSON.stringify({
+                     type: "signal",
+                     togameID: gameID,
+                     toPlayerID: currentPlayer.playerID,
+                     signal: {candidate: event.candidate}
+
+                }));
+            };
+
+            ws.send(JSON.stringify({
+                type: "signal",
+                togameID: gameID,
+                toPlayerID: playerID,
+                signal: {requestOffer: true}
+            }));
+          }
+        }
+
+          function setStatus(text){
+            document.getElementById("status").textContent = text;
+          }
+
+          document.getElementById("btnPrev").addEventListener("click", () => {
+            if(players.length === 0) return;
+            currentIndex = (currentIndex - 1 + players.length) % players.length;
+            startWatching();
+          });
+
+          document.getElementById("btnNext").addEventListener("click", () => {
+            if(players.length === 0) return;
+            currentIndex = (currentIndex + 1) % players.length;
+            startWatching();
+          });
+
+        </script>
+</body>
+</html>
