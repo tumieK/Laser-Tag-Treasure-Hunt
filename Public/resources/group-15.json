@@ -1,0 +1,20 @@
+{
+    "group-number": "15",
+    "name": "Team 15",
+    "github-repo-url":"https://github.com/tumieK/Laser-Tag-Treasure-Hunt",
+    "live-site-url": "https://laser-tag-treasure-hunt-3.onrender.com",
+    "team-members": [
+        { 
+            "name": "Ammaarah Abader",
+            "organization": "NMU",
+            "github-username":"Ammaarah-TheCodeCrafter",
+            "github-user-link":"https://github.com/Ammaarah-TheCodeCrafter"
+        },
+        { 
+            "name": "The other Rudolph Esterhuysen",
+            "organization": "UFS",
+            "github-username":"RudolphE-BBD",
+            "github-user-link":"https://github.com/RudolphE-BBD"
+        }
+    ]
+}
