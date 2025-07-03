@@ -167,6 +167,75 @@
       }
     }
 
+    async function getPoints(playerID) {
+        try {              
+          const response = await fetch(`/api/getplayerpoints?playerID=${playerID}`, {
+            method: 'GET', //  or 'GET' depending on your API
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+          });
+          const result = await response.json();
+          return result;
+          //console.log('API get points Response:', result);
+          // Optionally update UI based on response (e.g., score, health)
+        } catch (error) {
+          //console.error('API get points call failed:', error);
+          return null;
+        }        
+    }
+    // Wrap your calling code in an async function
+    async function updatePlayerPoints() {
+        if (playerID != "default") {
+            const score = document.getElementById('score');    
+            let temp = await getPoints(playerID);
+            playerPoints = Number(temp.Player.points);
+            //console.log("Temp", temp.Player.points);
+            score.innerText = "Score:: " + temp.Player.points;
+        }
+    }
+
+    async function getHealth(playerID) {
+      try {              
+        const response = await fetch(`/api/getplayerinfo?playerID=${playerID}`, {
+          method: 'GET', //  or 'GET' depending on your API
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          //body: JSON.stringify({ qrCode: qrData }), // Send QR code data
+        });
+        const result = await response.json();
+        return result;
+        //console.log('API get health Response:', result);
+        // Optionally update UI based on response (e.g., score, health)
+      } catch (error) {
+        //console.error('API get health call failed:', error);
+        return null;
+      }        
+    }
+    // Wrap your calling code in an async function
+    async function updatePlayerHealth() {
+        if (playerID != "default") {
+            const health = document.getElementById('health');    
+            let temp = await getHealth(playerID);
+            //console.log("Temp", temp.Player.health);
+            if (temp.Player.health == "0") {
+              window.location.href = "spectator.html";
+            }
+            if (playerHealth > temp.Player.health) {
+              if ('vibrate' in navigator) {
+                navigator.vibrate([1001]); // Min is 1001 ms
+                console.log('Vibration triggered');
+              } else {
+                console.log('Vibration not supported');
+              }                                
+            }
+            playerHealth = temp.Player.health;
+            health.innerText = "Health: " + temp.Player.health;
+        }
+    }
+
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         ctx.drawImage(video, regionX, regionY, tempCanvas.width, tempCanvas.height, 0, 0, tempCanvas.width, tempCanvas.height);

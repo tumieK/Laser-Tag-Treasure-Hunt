@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const { ppid } = require('process');
 const app = express();
 
 app.use(express.static('Public')); // Serve files in /Public
@@ -11,6 +12,8 @@ const data_players = path.join(__dirname,'db_player.json')
 
 
 let lobbies = {}
+
+const invincibilityTimers = {};
 
 function read_data(db) 
 {
@@ -180,9 +183,238 @@ if (lobby.players.includes(player.id)) {
 });
 //Players
 
-// Get information of a specific player
 
-app.get('/api/getplayerhealth', (req,res) =>
+// Make specific player invisible
+
+app.get('/api/makeplayerinvincible',(req,res)=>
+  {
+    const {playerID,healthLossType} =req.query
+        if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+            if(!healthLossType)
+    {
+      return res.status(400).json({error: "Missing type of health loss."})
+    }
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+if(!player)
+    {
+      return res.status(400).json({error: "Player not found."})
+    }
+
+let message = "vulnerable";
+
+  if (Number(healthLossType) === 1) {
+    // Set invincibility
+    player.invincibilitytime = 15;
+    player.isinvincible = true;
+    message = "invincible";
+
+    // Clear existing timer if it exists
+    if (invincibilityTimers[playerID]) {
+      clearInterval(invincibilityTimers[playerID]);
+    }
+
+    invincibilityTimers[playerID] = setInterval(() => {
+      const players = read_data(data_players);
+      const playerKey = Object.keys(players).find(key => players[key].id === playerID);
+      
+
+
+      if (!playerKey) {
+        clearInterval(invincibilityTimers[playerID]);
+        delete invincibilityTimers[playerID];
+        return;
+      }
+
+      const player = players[playerKey];
+      console.log(`Tick: Player ${playerID} has ${player.invincibilitytime} seconds left`);
+
+      if (player.invincibilitytime > 0) {
+        player.invincibilitytime -= 1;
+        write_data(data_players, players);
+      } else {
+        player.isinvincible = false;
+        write_data(data_players, players);
+        clearInterval(invincibilityTimers[playerID]);
+        delete invincibilityTimers[playerID];
+        console.log(`Player ${playerID} is no longer invincible.`);
+      }
+    }, 1000);
+  } else {
+    player.invincibilitytime = 0;
+    player.isinvincible = false;
+
+    if (invincibilityTimers[playerID]) {
+      clearInterval(invincibilityTimers[playerID]);
+      delete invincibilityTimers[playerID];
+    }
+  }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id} is ${message}`,
+        Player: { id: playerID, invincibletime: player.invincibilitytime,isinvincible:player.isinvincible },
+      }); 
+  })
+
+app.get('/api/changepointsplayer',(req,res)=>
+  {
+        const {playerID,pointsvalue} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!pointsvalue)
+    {
+      return res.status(400).json({error: "Missing health value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(pointsvalue))
+    {
+      player.points -=Number(pointsvalue)
+    }
+    else{
+      return res.status(400).json({error: "Invalid points value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s points decreased by ${pointsvalue} points`,
+        Player: { id: playerID, points: player.points },
+      }); 
+  })
+app.get('/api/changehealthplayer',(req,res)=>
+  {
+    const {playerID,healthvalue} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!healthvalue)
+    {
+      return res.status(400).json({error: "Missing health value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(healthvalue))
+    {
+      player.health +=Number(healthvalue)
+    }
+    else{
+      return res.status(400).json({error: "Invalid health value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s health changed by ${healthvalue}`,
+        Player: { id: playerID, health: player.health },
+      }); 
+  })
+
+  // Change Weapon ID for player
+
+app.get('/api/changeweaponplayer',(req,res)=>
+  {
+    const {playerID,weaponID} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!weaponID)
+    {
+      return res.status(400).json({error: "Missing weapon id value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(weaponID))
+    {
+      player.weaponid =Number(weaponID)
+    }
+    else{
+      return res.status(400).json({error: "Invalid weaponid value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s weaponid changed to ${weaponID}`,
+        Player: { id: playerID, weaponid: player.weaponid },
+      }); 
+  })
+
+//
+
+app.get('/api/changeweaponplayer',(req,res)=>
+  {
+    const {playerID,weaponID} = req.query
+
+
+      if(!playerID)
+    {
+      return res.status(400).json({error: "Missing player (ID)."})
+    }
+
+      if(!weaponID)
+    {
+      return res.status(400).json({error: "Missing weapon id value."})
+    }
+
+    const players = read_data(data_players);
+
+    const playerKey = Object.keys(players).find(key => players[key].id === playerID)
+    const player = players[playerKey]
+
+    if(Number(weaponID))
+    {
+      player.weaponid =Number(weaponID)
+    }
+    else{
+      return res.status(400).json({error: "Invalid weaponid value"})
+    }
+
+  players[playerKey] = player;
+  write_data(data_players, players);
+    res.json({
+        message: `Player ${player.id}'s weaponid changed to ${weaponID}`,
+        Player: { id: playerID, weaponid: player.weaponid },
+      }); 
+  })
+
+  // Get information of a specific player
+
+
+app.get('/api/getplayerinfo', (req,res) =>
   {
     const {playerID} = req.query
 
@@ -201,8 +433,8 @@ if(!player)
     }
 
     res.json({
-        message: `Player ${player.name} has ${player.health}`,
-        Player: { id: playerID, health: player.health },
+        message: `Player ${playerID}`,
+        Player: { id: playerID, health: player.health, weaponid:player.weaponid,invincibletime: player.invincibilitytime,isinvincible:player.isinvincible },
       });
   });
   app.get('/api/getplayerpoints', (req,res) =>
@@ -300,8 +532,11 @@ app.get('/api/hit',(req,res)=>
         }
         else
         {
-          hitPlayer.health = Math.max((hitPlayer.health || 5) - 1, 0);
-          shootPlayer.points += 10;
+          if(hitPlayer.isinvincible !== true)
+          {
+            hitPlayer.health = Math.max((hitPlayer.health || 5) - 1, 0);
+            shootPlayer.points += 10;
+        }
         }
   
 
