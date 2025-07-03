@@ -1,79 +1,81 @@
 const WebSocket = require("ws");
 const wss = new WebSocket.Server({ port: 8080 });
 
-const players = new Map();     // gameID -> Map<playerID, WebSocket>
-const spectators = new Map();  // gameID -> Set<WebSocket>
+const games = new Map(); // Map<gameID, Map<playerID, ws>>
+const spectators = new Map(); // Map<gameID, Set<ws>>
 
 wss.on("connection", (ws) => {
   ws.on("message", (msg) => {
-    try {
-      const data = JSON.parse(msg);
+    const data = JSON.parse(msg);
 
-      // Register player or spectator
-      if (data.type === "register") {
-        const { gameID, playerID, role } = data;
+    if (data.type === "register") {
+      const { gameID, playerID, role } = data;
+
+      if (role === "spectator") {
+        if (!spectators.has(gameID)) spectators.set(gameID, new Set());
+        spectators.get(gameID).add(ws);
+
+        ws.isSpectator = true;
         ws.gameID = gameID;
+
+        console.log(`Spectator registered to ${gameID}`);
+      } else {
+        if (!games.has(gameID)) games.set(gameID, new Map());
+        games.get(gameID).set(playerID, ws);
+
         ws.playerID = playerID;
-        ws.role = role || "player";
+        ws.gameID = gameID;
 
-        if (ws.role === "spectator") {
-          if (!spectators.has(gameID)) spectators.set(gameID, new Set());
-          spectators.get(gameID).add(ws);
-          console.log(`Spectator connected to game ${gameID}`);
-        } else {
-          if (!players.has(gameID)) players.set(gameID, new Map());
-          players.get(gameID).set(playerID, ws);
-          console.log(`Player ${playerID} registered to game ${gameID}`);
-        }
-      }
+        console.log(`Player ${playerID} registered to ${gameID}`);
 
-      // Player sending signal to spectators (offer or candidate)
-      if (data.type === "playerSignal") {
-        const { signal, fromPlayerID, gameID } = data;
-        const specSet = spectators.get(gameID);
-        if (!specSet) return;
-
-        specSet.forEach(spectatorWS => {
-          if (spectatorWS.readyState === WebSocket.OPEN) {
+        // Notify all spectators to request feed
+        const gameSpectators = spectators.get(gameID);
+        if (gameSpectators) {
+          gameSpectators.forEach(spectatorWS => {
             spectatorWS.send(JSON.stringify({
               type: "signal",
-              signal,
-              fromPlayerID
+              signal: { requestOffer: true },
+              fromPlayerID: playerID
             }));
-          }
-        });
-      }
-
-      // Spectator responding to a player (answer or candidate)
-      if (data.type === "signal") {
-        const { toGameID, toPlayerID, signal } = data;
-        const playerWS = players.get(toGameID)?.get(toPlayerID);
-        if (playerWS && playerWS.readyState === WebSocket.OPEN) {
-          playerWS.send(JSON.stringify({
-            type: "signal",
-            signal
-          }));
+          });
         }
       }
+    }
 
-    } catch (err) {
-      console.error("Invalid message format:", err);
+    if (data.type === "signal") {
+      const { toGameID, toPlayerID, signal } = data;
+      const playerWS = games.get(toGameID)?.get(toPlayerID);
+      if (playerWS) {
+        playerWS.send(JSON.stringify({
+          type: "signal",
+          signal,
+          fromPlayerID: ws.playerID || null
+        }));
+        playerWS.lastSpectatorWS = ws;
+      }
+    }
+
+    if (data.type === "playerSignal") {
+      if (ws.lastSpectatorWS) {
+        ws.lastSpectatorWS.send(JSON.stringify({
+          type: "signal",
+          signal: data.signal,
+          fromPlayerID: ws.playerID
+        }));
+      }
     }
   });
 
   ws.on("close", () => {
-    const { gameID, playerID, role } = ws;
-
-    if (role === "spectator") {
-      const set = spectators.get(gameID);
-      if (set) set.delete(ws);
-    } else if (role === "player") {
-      const map = players.get(gameID);
-      if (map) map.delete(playerID);
+    if (ws.isSpectator && ws.gameID) {
+      spectators.get(ws.gameID)?.delete(ws);
     }
 
-    console.log(`${role ?? "Client"} disconnected from game ${gameID}`);
+    if (ws.gameID && ws.playerID) {
+      games.get(ws.gameID)?.delete(ws.playerID);
+      console.log(`Player ${ws.playerID} disconnected from ${ws.gameID}`);
+    }
   });
 });
 
-console.log(" Signal server is running on ws://localhost:8080");
+console.log("Signal server running on ws://localhost:8080");
