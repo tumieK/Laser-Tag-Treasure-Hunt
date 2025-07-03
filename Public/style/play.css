@@ -1,0 +1,86 @@
+ * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Archivo', sans-serif;
+    }
+
+    body, html {
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #000000, #1a0000);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 1s ease-in;
+    }
+
+    #containerflow{
+      display: flex;
+      flex-flow: column;
+    }
+    #container{
+      flex-flow: row wrap;
+    }
+    h1{
+      font-size: 3rem;
+      margin-bottom: 40px;
+      text-shadow: 5px 5px darkred;
+    } 
+    #lobbyPanel {
+      background: rgba(255, 0, 0, 0.07);
+      border: 1px solid #ff0000;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+      text-align: center;
+      animation: slideUp 0.8s ease-out;
+    }
+
+    #lobbyPanel div {
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    button {
+      background: #ff0000;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background: #cc0000;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 50, 50, 0.9);
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }

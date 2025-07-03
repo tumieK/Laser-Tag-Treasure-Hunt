@@ -4,107 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>All Player Feeds</title>
-  <style>
-    body {
-      margin: 0;
-      background: #111;
-      color: white;
-      font-family: sans-serif;
-      padding: 10px;
-    }
-    h1 {
-      text-align: center;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      padding: 20px;
-    }
-    .player {
-      background: #222;
-      border: 2px solid red;
-      border-radius: 10px;
-      overflow: hidden;
-      padding: 10px;
-    }
-    video {
-      width: 100%;
-      height: auto;
-      background: black;
-    }
-  </style>
+  <link href="style/style.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
   <h1>Live Player Feeds</h1>
-  <div id="playerGrid" class="grid"></div>
-
-  <script>
-    const ws = new WebSocket("ws://localhost:8080");
-    const lobbyId = new URLSearchParams(window.location.search).get("lobby");
-
-    const peerConnections = {};
-    const playerGrid = document.getElementById("playerGrid");
-
-    ws.onopen = () => {
-      console.log("Spectator connected to signal server.");
-      // You might notify server here if needed
-    };
-
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === "signal" && msg.signal?.sdp && msg.signal.sdp.type === "offer") {
-        const fromPlayerID = msg.fromPlayerID;
-
-        const pc = new RTCPeerConnection();
-        peerConnections[fromPlayerID] = pc;
-
-        const videoEl = document.createElement("video");
-        videoEl.autoplay = true;
-        videoEl.playsInline = true;
-        videoEl.id = `video-${fromPlayerID}`;
-
-        const wrapper = document.createElement("div");
-        wrapper.className = "player";
-        wrapper.appendChild(videoEl);
-        playerGrid.appendChild(wrapper);
-
-        pc.ontrack = (event) => {
-          videoEl.srcObject = event.streams[0];
-          console.log(`Streaming from ${fromPlayerID}`);
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            ws.send(JSON.stringify({
-              type: "signal",
-              toGameID: lobbyId,
-              toPlayerID: fromPlayerID,
-              signal: { candidate: event.candidate }
-            }));
-          }
-        };
-
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        ws.send(JSON.stringify({
-          type: "signal",
-          toGameID: lobbyId,
-          toPlayerID: fromPlayerID,
-          signal: { sdp: pc.localDescription }
-        }));
-      }
-
-      if (msg.type === "signal" && msg.signal?.candidate) {
-        const pc = peerConnections[msg.fromPlayerID];
-        if (pc) {
-          await pc.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
-        }
-      }
-    };
-  </script>
+  <div id="playerGrid" class="grid">
+    <video id="remoteVideo" autoplayinline></video>
+  </div>
+  <script src="js/client.js"></script>
 </body>
 </html>

@@ -5,162 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Laser Tech</title>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700&display=swap" rel="stylesheet" />
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Archivo', sans-serif;
-    }
-
-    body, html {
-      height: 100%;
-      overflow: hidden;
-      background: linear-gradient(135deg, #000000, #1a0000);
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 1s ease-in;
-    }
-
-    #lobbyPanel {
-      background: rgba(255, 0, 0, 0.07);
-      border: 1px solid #ff0000;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
-      text-align: center;
-      animation: slideUp 0.8s ease-out;
-    }
-
-    #lobbyPanel div {
-      margin-bottom: 15px;
-      font-size: 1.2rem;
-    }
-
-    button {
-      background: #ff0000;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      font-size: 1.2rem;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-      box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
-      transition: background 0.3s ease, transform 0.2s ease;
-    }
-
-    button:hover {
-      background: #cc0000;
-      transform: scale(1.05);
-      box-shadow: 0 0 20px rgba(255, 50, 50, 0.9);
-    }
-
-    #canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: -1;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(40px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  </style>
+  <link href="style/play.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
-  <canvas id="canvas" width="800" height="600"></canvas>
-
+  <div id="containerflow">
+    <div>
+      <h1>Laser Tech</h1>
+    </div>
+    <div id="container">
+<canvas id="canvas" width="800" height="600"></canvas>
   <div id="lobbyPanel">
     <div><strong>Lobby ID:</strong> <span id="lobby">Loading...</span></div>
     <div><strong>You are:</strong> <span id="playerInfo">...</span></div>
     <button id="startButton" onclick="start()" style="display:none;">START</button>
   </div>
-
-  <script type="module">
-    async function start() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const lobby = urlParams.get('lobby');
-        const player = urlParams.get('player');
-        const username = urlParams.get('username');
-        const role = urlParams.get('role') ?? (player ? "Player" : "Spectator");
-
-        document.getElementById("lobby").textContent = lobby ?? "Unknown";
-        document.getElementById("playerInfo").textContent = username ?? role;
-
-        if (role.toLowerCase() !== "spectator") return;
-        //{document.getElementById("startButton").style.display = "inline-block"; }
-
-        const res = await fetch(`/lobby/start?lobby=${lobby}`);
-        const json = await res.json();
-        if (json.error) throw json.error;
-
-       // window.location.href = `/ingame_player.html?lobby=${lobby}&player=${player}&username=${username}`;
-      window.location.href = `/spectator.html?lobby=${lobby}&player=${player}&username=${username}`;
-      } catch (err) {
-        alert("Error: " + err);
-      }
-    }
-    async function reset() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const lobby = urlParams.get('lobby');
-      const res = await fetch(`/lobby/reset?lobby=${lobby}`);
-      const json = await res.json();
-      if (json.error) throw json.error;
-    }
-
-    async function pollForGameStart() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const lobby = urlParams.get('lobby');
-      const player = urlParams.get('player');
-      const username = urlParams.get('username');
-
-      try {
-        const res = await fetch(`/lobby/start?lobby=${lobby}`);
-        const json = await res.json();
-        if (json?.lobby?.status === 'playing') {
-          window.location.href = `/ingame_player.html?lobby=${lobby}&player=${player}&username=${username}`;
-        } else {
-          setTimeout(pollForGameStart, 1500);
-        }
-      } catch (err) {
-        setTimeout(pollForGameStart, 3000);
-      }
-    }
-
-    window.start = start;
-
-    window.onload = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const lobby = urlParams.get('lobby');
-      const player = urlParams.get('player');
-      const username = urlParams.get('username');
-      const role = urlParams.get('role') ?? (player ? "Player" : "Spectator");
-
-      document.getElementById("lobby").textContent = lobby ?? "Unknown";
-      document.getElementById("playerInfo").textContent = username ?? role;
-
-      if (role.toLowerCase() === "spectator") {
-        document.getElementById("startButton").style.display = "inline-block";
-      } else {
-        pollForGameStart();
-      }
-    };
+    </div>
+  </div>
+  
+  <script src="js/play.js">
   </script>
 </body>
 </html>
