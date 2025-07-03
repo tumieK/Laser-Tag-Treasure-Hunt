@@ -3,7 +3,7 @@
     "id": "1",
     "name": "Alice",
     "health": 5,
-    "points": 66,
+    "points": 186,
     "weaponid": 1,
     "invincibilitytime": 0,
     "isinvincible": false
@@ -11,7 +11,7 @@
   "2": {
     "id": "2",
     "name": "Bob",
-    "health": 5,
+    "health": 2,
     "points": 0,
     "weaponid": 1,
     "invincibilitytime": 0,
