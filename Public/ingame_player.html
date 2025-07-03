@@ -168,7 +168,7 @@
     }
 
     // After QR code is scanned and playerID is known
-    function sendOfferToSpectators() {
+   function sendOfferToSpectators() {
       const pc = new RTCPeerConnection();
       const localStream = window.localVideoStream || video.srcObject;
       const clonedStream = localStream.clone();
@@ -297,6 +297,21 @@
             }));
           }
         };
+
+        // Handle incoming answer from the spectator
+if (msg.type === "signal" && msg.signal?.sdp?.type === "answer") {
+  await peerConnections["spectator"].setRemoteDescription(
+    new RTCSessionDescription(msg.signal.sdp)
+  );
+}
+
+// Handle incoming ICE candidates from spectator
+if (msg.type === "signal" && msg.signal?.candidate) {
+  await peerConnections["spectator"].addIceCandidate(
+    new RTCIceCandidate(msg.signal.candidate)
+  );
+}
+
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
