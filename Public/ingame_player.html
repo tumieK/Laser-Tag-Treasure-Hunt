@@ -69,7 +69,6 @@
     <div id="overlay"></div>
     <div id="popup"></div>
     <button id="shoot-button">Scan your QR code!</button>
-    <!-- Audio elements for sounds -->
     <audio id="pew-sound" src="resources/pew.mp3" preload="auto"></audio>
     <audio id="boom-sound" src="resources/boom.mp3" preload="auto"></audio>
   </div>
@@ -93,9 +92,7 @@
 
     let regionSize, regionX, regionY;
     let lastDetectionTime = 0;
-    let lastScannedId = null;
 
-    // Params from URL
     const params = new URLSearchParams(window.location.search);
     const myId = params.get('player');
     const username = params.get('username');
@@ -105,7 +102,7 @@
 
     pewSound.volume = 1.0;
     boomSound.volume = 1.0;
-    
+
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -117,20 +114,12 @@
           }
         });
         video.srcObject = stream;
+        window.localVideoStream = stream;
         video.addEventListener('loadedmetadata', updateOverlay);
         window.addEventListener('resize', updateOverlay);
         requestAnimationFrame(tick);
       } catch (err) {
         console.error('Error accessing camera:', err);
-      }
-    }
-
-    function removeHttp(text) {
-      if (text[0] == "h") {
-        return text.slice(8);
-      }
-      else{
-        return text;
       }
     }
 
@@ -160,7 +149,57 @@
       popup.hideTimeout = setTimeout(() => {
         popup.style.opacity = '0';
       }, 1200);
-    }    
+    }
+
+    async function getHealth(pid) {
+      try {
+        const response = await fetch(`/api/getplayerhealth?playerID=${pid}`);
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function getPoints(pid) {
+      try {
+        const response = await fetch(`/api/getplayerpoints?playerID=${pid}`);
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    // After QR code is scanned and playerID is known
+   function sendOfferToSpectators() {
+      const pc = new RTCPeerConnection();
+      const localStream = window.localVideoStream || video.srcObject;
+      const clonedStream = localStream.clone();
+      clonedStream.getTracks().forEach(track => pc.addTrack(track, clonedStream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.send(JSON.stringify({
+            type: "playerSignal",
+            signal: { candidate: event.candidate },
+            toSpectatorID: "broadcast", // or individual if known
+            fromPlayerID: playerID,
+            gameID: lobbyId
+          }));
+        }
+      };
+
+      pc.createOffer()
+        .then(offer => {
+          pc.setLocalDescription(offer);
+          ws.send(JSON.stringify({
+            type: "playerSignal",
+            signal: { sdp: offer },
+            toSpectatorID: "broadcast",
+            fromPlayerID: playerID,
+            gameID: lobbyId
+          }));
+        });
+    }
 
     async function getPoints(playerID) {
         try {              
@@ -236,21 +275,22 @@
         ctx.drawImage(video, regionX, regionY, tempCanvas.width, tempCanvas.height, 0, 0, tempCanvas.width, tempCanvas.height);
         const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
         if (code) {
+          const scanned = code.data.trim().replace(/^https?:\/\//, '');
           if (firstScan) {
-            playerID = removeHttp(code.data);
+            playerID = scanned;
             firstScan = false;
-            const button = document.getElementById('shoot-button');
-            button.innerText = "Shoot";
+            document.getElementById('shoot-button').textContent = "Shoot";
+
+            // Start polling health only after QR scan
+            setInterval(pollHealth, 5000);
+            pollPoints();
+          } else {
+            lastDetectionTime = performance.now();
+            hitPlayerID = scanned;
+            showPopup(`Target Locked: ${scanned}`);
           }
-          else{
-            lastDetectionTime = performance.now(); // Reset timer to current time
-            showPopup(code.data);
-            hitPlayerID = removeHttp(code.data);
-          }
-          lastDetectionTime = performance.now();
-          lastScannedId = code.data.trim();
-          showPopup(`Target Locked: ${lastScannedId}`);
         }
       }
       requestAnimationFrame(tick);
@@ -267,6 +307,47 @@
       }
      }
 
+    //  Start camera immediately
+    startCamera();
+
+    // WebRTC logic for sending stream to spectator
+    const ws = new WebSocket("ws://localhost:8080");
+    const peerConnections = {};
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        type: "register",
+        gameID: lobbyId,
+        playerID: myId
+      }));
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "signal" && data.signal?.requestOffer) {
+        const pc = new RTCPeerConnection();
+        peerConnections[data.fromSpectatorID || 'default'] = pc;
+
+        const stream = window.localVideoStream;
+        const clone = stream.clone();
+        clone.getTracks().forEach(track => pc.addTrack(track, clone));
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            ws.send(JSON.stringify({
+              type: "playerSignal",
+              signal: { candidate: event.candidate }
+            }));
+          }
+        };
+
+        // Handle incoming answer from the spectator
+if (msg.type === "signal" && msg.signal?.sdp?.type === "answer") {
+  await peerConnections["spectator"].setRemoteDescription(
+    new RTCSessionDescription(msg.signal.sdp)
+  );
+}
 
     document.getElementById('shoot-button').addEventListener('click', function () {
       const currentTime = performance.now();
@@ -373,26 +454,38 @@
         boomSound.currentTime = 0; // Reset to start
         boomSound.play().catch(err => console.error('Error playing boom sound:', err));
 
-      }
-      else {
-        // Play pew sound on shoot
-        // Play pew sound with reset for rapid clicks
-        pewSound.currentTime = 0; // Reset to start to allow immediate replay
-        pewSound.play().catch(err => {
-          console.error('Error playing pew sound:', err);
-          // Fallback: Clone audio element to bypass play restrictions
-          const newPewSound = pewSound.cloneNode();
-          newPewSound.volume = 1.0;
-          newPewSound.src = 'resources/pew.mp3';
-          newPewSound.currentTime = 0;
-          newPewSound.play().catch(err => console.error('Fallback pew sound failed:', err));
-        });
-        showPopup(" No target");
-      }
-    });
+// Handle incoming ICE candidates from spectator
+if (msg.type === "signal" && msg.signal?.candidate) {
+  await peerConnections["spectator"].addIceCandidate(
+    new RTCIceCandidate(msg.signal.candidate)
+  );
+}
 
-    startCamera();
-    //setInterval(pollHealth, 500);
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        ws.send(JSON.stringify({
+          type: "playerSignal",
+          signal: { sdp: pc.localDescription }
+        }));
+      }
+
+      if (data.type === "signal" && data.signal?.candidate) {
+        const pc = peerConnections['default'];
+        if (pc) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+        }
+      }
+
+      if (data.type === "signal" && data.signal?.sdp && data.signal.sdp.type === "answer") {
+        const pc = peerConnections['default'];
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
+        }
+      }
+    };
+
   </script>
 </body>
 </html>

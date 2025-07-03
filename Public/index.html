@@ -22,10 +22,24 @@
       margin-bottom: 40px;
     }
 
-    h1 span.wavy {
+    #animated {
       display: inline-block;
-      animation: wave 0.5s ease-in-out forwards;
+      animation: wave 1.5s ease-in-out forwards;
+      text-shadow: 5px 5px darkred;
     }
+
+    #flexContainer{
+      display:flex;
+    }
+    .flexItemSides{
+      flex:1;
+      margin : 10px;
+    }
+    #flexItemMain{
+      margin : 10px;
+      flex: 3
+    }
+
 
     @keyframes wave {
       from { transform: translateY(10px); opacity: 0; }
@@ -74,14 +88,24 @@
   </script>
 </head>
 <body>
-  <h1 id="animated">Laser Tech</h1>
-
-  <div class="panel">
-    <button onclick="newLobby()">Create Lobby (Spectator)</button>
-
-    <input type="text" id="lobby" placeholder="Enter Lobby ID" maxlength="6" minlength="6" />
-    <input type="text" id="uname" placeholder="Enter Your Username" maxlength="12" minlength="2" />
-    <button onclick="joinLobby()">Join as Player</button>
+  <div id="flexContainer">
+  <div class="flexItemSides">
+    <img src="resources/LaserBlue.png" />
   </div>
+  
+  <div id="flexMain">
+    <h1 id="animated">Laser Tech</h1>
+    <div class="panel">
+      <button onclick="newLobby()">Create Lobby (Spectator)</button>
+      <input type="text" id="lobby" placeholder="Enter Lobby ID" maxlength="6" minlength="6" />
+      <input type="text" id="uname" placeholder="Enter Your Username" maxlength="12" minlength="2" />
+      <button onclick="joinLobby()">Join as Player</button>
+    </div>
+  </div>
+
+  <div class="flexItemSides">
+    <img src="resources/Laser.png" />
+  </div>
+ </div>
 </body>
 </html>

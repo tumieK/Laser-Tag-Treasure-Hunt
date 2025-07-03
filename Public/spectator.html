@@ -3,129 +3,116 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spectator View</title>
+  <title>All Player Feeds</title>
   <style>
-    video { border: 2px solid red; width: 640px; height: 480px; background: black; }
-    body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 2rem; }
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      padding: 10px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .player {
+      background: #222;
+      border: 2px solid red;
+      border-radius: 10px;
+      overflow: hidden;
+      padding: 10px;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      background: black;
+    }
   </style>
 </head>
 <body>
-  <h1>Spectator View</h1>
-  <video id="remoteVideo" autoplay playsinline></video>
-  <p>Status: <span id="status">Loading...</span></p>
-  <button id="btnPrev">Previous Player</button>
-  <button id="btnNext">Next Player</button>
+  <h1>Live Player Feeds</h1>
+  <div id="playerGrid" class="grid"></div>
 
   <script>
     const ws = new WebSocket("ws://localhost:8080");
-    const gameID = "Game1";
-
-    let peer = null;
-    let players = [];
-    let currentIndex = 0;
-
-    function setStatus(text) {
-      document.getElementById("status").textContent = text;
-    }
+    const lobbyId = new URLSearchParams(window.location.search).get("lobby");
+    const peerConnections = {};
+    const playerGrid = document.getElementById("playerGrid");
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
-      setStatus("Connected to signaling server.");
-      loadGameData();
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "signal") {
-        if (msg.signal.sdp) {
-          peer.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp)).then(() => {
-            if (msg.signal.sdp.type === "offer") {
-              return peer.createAnswer()
-                .then(answer => peer.setLocalDescription(answer))
-                .then(() => {
-                  ws.send(JSON.stringify({
-                    type: "signal",
-                    toGameID: gameID,
-                    toPlayerID: players[currentIndex].playerID,
-                    signal: { sdp: peer.localDescription }
-                  }));
-                  setStatus(`Sent answer to ${players[currentIndex].playerID}`);
-                });
-            }
-          });
-        }
-        if (msg.signal.candidate) {
-          peer.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
-        }
-      }
-    };
-
-    function loadGameData() {
-      fetch("/db_lobby.json")
-        .then(res => res.json())
-        .then(data => {
-          const lobby = data[gameID];
-          if (!lobby || !lobby.players) {
-            throw new Error("No players found.");
-          }
-          players = Object.values(lobby.players);
-          currentIndex = 0;
-          startWatching();
-        })
-        .catch(err => {
-          console.error(err);
-          setStatus("Failed to load player data.");
-        });
-    }
-
-    function startWatching() {
-      if (peer) {
-        peer.close();
-        peer = null;
-        document.getElementById("remoteVideo").srcObject = null;
-      }
-
-      const currentPlayer = players[currentIndex];
-      setStatus(`Requesting stream from ${currentPlayer.username}`);
-
-      peer = new RTCPeerConnection();
-
-      peer.ontrack = (event) => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
-        setStatus(`Watching ${currentPlayer.username}`);
-      };
-
-      peer.onicecandidate = (event) => {
-        if (event.candidate) {
-          ws.send(JSON.stringify({
-            type: "signal",
-            toGameID: gameID,
-            toPlayerID: currentPlayer.playerID,
-            signal: { candidate: event.candidate }
-          }));
-        }
-      };
-
-      // Tell player to send offer
+      console.log(" Spectator connected to signal server");
+      // Register as spectator
       ws.send(JSON.stringify({
-        type: "signal",
-        toGameID: gameID,
-        toPlayerID: currentPlayer.playerID,
-        signal: { requestOffer: true }
+        type: "register",
+        gameID: lobbyId,
+        role: "spectator"
       }));
-    }
+    };
 
-    document.getElementById("btnPrev").addEventListener("click", () => {
-      if (players.length === 0) return;
-      currentIndex = (currentIndex - 1 + players.length) % players.length;
-      startWatching();
-    });
+    ws.onmessage = async (event) => {
+      const msg = JSON.parse(event.data);
 
-    document.getElementById("btnNext").addEventListener("click", () => {
-      if (players.length === 0) return;
-      currentIndex = (currentIndex + 1) % players.length;
-      startWatching();
-    });
+      // Player is sending us a video offer
+      if (msg.type === "signal" && msg.signal?.sdp?.type === "offer") {
+        const fromPlayerID = msg.fromPlayerID;
+
+        if (peerConnections[fromPlayerID]) return; // Already connected
+
+        const pc = new RTCPeerConnection();
+        peerConnections[fromPlayerID] = pc;
+
+        const videoEl = document.createElement("video");
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
+        videoEl.id = `video-${fromPlayerID}`;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "player";
+        wrapper.appendChild(videoEl);
+        playerGrid.appendChild(wrapper);
+
+        pc.ontrack = (event) => {
+          videoEl.srcObject = event.streams[0];
+          console.log(` Displaying stream from player ${fromPlayerID}`);
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            ws.send(JSON.stringify({
+              type: "signal",
+              toGameID: lobbyId,
+              toPlayerID: fromPlayerID,
+              signal: { candidate: event.candidate }
+            }));
+          }
+        };
+
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.signal.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        ws.send(JSON.stringify({
+          type: "signal",
+          toGameID: lobbyId,
+          toPlayerID: fromPlayerID,
+          signal: { sdp: pc.localDescription }
+        }));
+      }
+
+      // Player sends ICE candidate
+      if (msg.type === "signal" && msg.signal?.candidate) {
+        const pc = peerConnections[msg.fromPlayerID];
+        if (pc) {
+          await pc.addIceCandidate(new RTCIceCandidate(msg.signal.candidate));
+        }
+      }
+    };
   </script>
 </body>
 </html>
