@@ -42,20 +42,27 @@
   <script>
     const ws = new WebSocket("ws://localhost:8080");
     const lobbyId = new URLSearchParams(window.location.search).get("lobby");
-
     const peerConnections = {};
     const playerGrid = document.getElementById("playerGrid");
 
     ws.onopen = () => {
-      console.log("Spectator connected to signal server.");
-      // You might notify server here if needed
+      console.log(" Spectator connected to signal server");
+      // Register as spectator
+      ws.send(JSON.stringify({
+        type: "register",
+        gameID: lobbyId,
+        role: "spectator"
+      }));
     };
 
     ws.onmessage = async (event) => {
       const msg = JSON.parse(event.data);
 
-      if (msg.type === "signal" && msg.signal?.sdp && msg.signal.sdp.type === "offer") {
+      // Player is sending us a video offer
+      if (msg.type === "signal" && msg.signal?.sdp?.type === "offer") {
         const fromPlayerID = msg.fromPlayerID;
+
+        if (peerConnections[fromPlayerID]) return; // Already connected
 
         const pc = new RTCPeerConnection();
         peerConnections[fromPlayerID] = pc;
@@ -72,7 +79,7 @@
 
         pc.ontrack = (event) => {
           videoEl.srcObject = event.streams[0];
-          console.log(`Streaming from ${fromPlayerID}`);
+          console.log(` Displaying stream from player ${fromPlayerID}`);
         };
 
         pc.onicecandidate = (event) => {
@@ -98,6 +105,7 @@
         }));
       }
 
+      // Player sends ICE candidate
       if (msg.type === "signal" && msg.signal?.candidate) {
         const pc = peerConnections[msg.fromPlayerID];
         if (pc) {

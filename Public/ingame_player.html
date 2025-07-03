@@ -167,6 +167,38 @@
       }
     }
 
+    // After QR code is scanned and playerID is known
+    function sendOfferToSpectators() {
+      const pc = new RTCPeerConnection();
+      const localStream = window.localVideoStream || video.srcObject;
+      const clonedStream = localStream.clone();
+      clonedStream.getTracks().forEach(track => pc.addTrack(track, clonedStream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.send(JSON.stringify({
+            type: "playerSignal",
+            signal: { candidate: event.candidate },
+            toSpectatorID: "broadcast", // or individual if known
+            fromPlayerID: playerID,
+            gameID: lobbyId
+          }));
+        }
+      };
+
+      pc.createOffer()
+        .then(offer => {
+          pc.setLocalDescription(offer);
+          ws.send(JSON.stringify({
+            type: "playerSignal",
+            signal: { sdp: offer },
+            toSpectatorID: "broadcast",
+            fromPlayerID: playerID,
+            gameID: lobbyId
+          }));
+        });
+    }
+
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         ctx.drawImage(video, regionX, regionY, tempCanvas.width, tempCanvas.height, 0, 0, tempCanvas.width, tempCanvas.height);
@@ -289,6 +321,7 @@
         }
       }
     };
+
   </script>
 </body>
 </html>
